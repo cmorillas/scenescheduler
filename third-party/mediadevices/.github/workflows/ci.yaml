@@ -1,0 +1,80 @@
+name: CI
+on:
+  pull_request:
+    branches:
+      - master
+  push:
+    branches:
+      - master
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ["1.25", "1.24"] # auto-update/supported-go-version-list
+    name: Linux Go ${{ matrix.go }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ matrix.go }}
+      - name: Install dependencies
+        run: |
+          sudo apt-get update -qq \
+          && sudo apt-get install --no-install-recommends -y \
+            libopus-dev \
+            libva-dev \
+            libvpx-dev \
+            libx11-dev \
+            libx264-dev \
+            libxext-dev
+      - name: Run Test Suite
+        run: make test
+      - uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+  build-darwin:
+    strategy:
+      fail-fast: false
+      matrix:
+        go: ["1.25", "1.24"] # auto-update/supported-go-version-list
+    runs-on: macos-latest
+    name: Darwin Go ${{ matrix.go }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: ${{ matrix.go }}
+      - name: Install dependencies
+        run: |
+          which brew
+          brew install \
+            pkg-config \
+            opus \
+            libvpx \
+            x264
+      - name: Run Test Suite
+        run: make test
+      - uses: codecov/codecov-action@v5
+        with:
+          token: ${{ secrets.CODECOV_TOKEN }}
+  check-licenses:
+    runs-on: ubuntu-latest
+    name: Check Licenses
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v5
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version: stable
+      - name: Installing go-licenses
+        run: go install github.com/google/go-licenses@latest
+      - name: Checking licenses
+        run: go-licenses check ./...
