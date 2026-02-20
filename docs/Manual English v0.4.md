@@ -95,30 +95,31 @@ cd scenescheduler
 Edit `config.json`:
 ```json
 {
-  "obsWebSocket": {
+  "obs": {
     "host": "localhost",
     "port": 4455,
-    "password": "your-obs-password"
+    "password": "your-obs-password",
+    "scheduleScene": "_SCHEDULER",
+    "scheduleSceneAux": "_SCHEDULER_AUX",
+    "sourceNamePrefix": "_sched_"
   },
   "webServer": {
-    "host": "0.0.0.0",
-    "port": 8080,
+    "port": "8080",
+    "user": "admin",
+    "password": "your-web-password",
     "hlsPath": "hls"
   },
-  "schedule": {
-    "jsonPath": "schedule.json",
-    "scheduleSceneAux": "scheduleSceneAux"
-  },
   "paths": {
-    "hlsGenerator": "./hls-generator"
+    "logFile": "logs.txt",
+    "schedule": "schedule.json"
   }
 }
 ```
 
 **Critical configuration notes:**
-- `obsWebSocket.password`: Must match your OBS WebSocket password
+- `obs.password`: Must match your OBS WebSocket password
+- `obs.scheduleScene` and `obs.scheduleSceneAux`: Required — names of the OBS scenes managed by Scene Scheduler
 - `webServer.hlsPath`: Directory for HLS preview files (relative to executable)
-- `schedule.scheduleSceneAux`: Name of the auxiliary OBS scene (created automatically if it doesn't exist)
 
 **Step 4: Auxiliary Scene**
 
@@ -1733,499 +1734,300 @@ The configuration file must be in the same directory as the `scenescheduler` exe
 
 ### 6.2 Complete Configuration Template
 
-Here's a fully commented `config.json` template:
+Here's a complete `config.json` template with all available fields:
 
 ```json
 {
-  "obsWebSocket": {
+  "obs": {
     "host": "localhost",
     "port": 4455,
-    "password": "your-obs-websocket-password"
+    "password": "your-obs-websocket-password",
+    "reconnectInterval": 15,
+    "scheduleScene": "_SCHEDULER",
+    "scheduleSceneAux": "_SCHEDULER_AUX",
+    "sourceNamePrefix": "_sched_"
   },
   "webServer": {
-    "host": "0.0.0.0",
-    "port": 8080,
-    "hlsPath": "hls"
+    "port": "8080",
+    "user": "admin",
+    "password": "your-web-password",
+    "hlsPath": "hls",
+    "enableTls": false,
+    "certFilePath": "",
+    "keyFilePath": ""
   },
-  "schedule": {
-    "jsonPath": "schedule.json",
-    "scheduleSceneAux": "scheduleSceneAux"
+  "mediaSource": {
+    "videoDeviceIdentifier": "video0",
+    "audioDeviceIdentifier": "default",
+    "quality": "medium"
   },
   "paths": {
-    "hlsGenerator": "./hls-generator"
+    "logFile": "logs.txt",
+    "schedule": "schedule.json"
   },
-  "logging": {
-    "level": "info",
-    "format": "text"
+  "scheduler": {
+    "defaultSource": {
+      "name": "DefaultBackupSource",
+      "inputKind": "image_source",
+      "uri": "/path/to/backup_image.png",
+      "inputSettings": {}
+    }
   }
 }
 ```
 
 ### 6.3 Configuration Sections
 
-#### 6.3.1 OBS WebSocket Configuration (`obsWebSocket`)
+#### 6.3.1 OBS Connection Configuration (`obs`)
 
 Controls connection to OBS Studio via the WebSocket protocol.
 
-**`host`** (string, required)
+**`host`** (string)
 - OBS Studio hostname or IP address
-- **Default:** `"localhost"` (OBS on same machine)
-- **Examples:**
-  - `"localhost"` - OBS on local machine
-  - `"192.168.1.100"` - OBS on remote machine (same network)
-  - `"obs.local"` - OBS via hostname (requires DNS/mDNS)
+- **Default:** `"localhost"`
 
-**`port`** (integer, required)
+**`port`** (integer)
 - WebSocket server port
-- **Default:** `4455` (OBS default)
-- **Range:** 1024-65535
+- **Default:** `4455`
 - **Note:** Must match port configured in OBS (Tools → WebSocket Server Settings)
 
-**`password`** (string, optional)
+**`password`** (string)
 - WebSocket authentication password
 - **Default:** `""` (empty = no authentication)
-- **Security:** Highly recommended for production use
-- **Must match:** Password set in OBS WebSocket settings
+- **Warning:** If empty, Scene Scheduler logs a warning at startup
 
-**Example configurations:**
+**`reconnectInterval`** (integer)
+- Seconds between reconnection attempts when OBS connection is lost
+- **Default:** `15`
 
-**Local OBS, no password:**
+**`scheduleScene`** (string, **required**)
+- Name of the primary OBS scene managed by Scene Scheduler
+- Created automatically if it doesn't exist
+
+**`scheduleSceneAux`** (string, **required**)
+- Name of the auxiliary OBS scene used for staging sources
+- This is the "backstage area" where sources are prepared before transitioning
+- Created automatically if it doesn't exist
+
+**`sourceNamePrefix`** (string)
+- Prefix added to all OBS sources created by Scene Scheduler
+- **Default:** `"_sched_"`
+
+**Example:**
 ```json
-"obsWebSocket": {
+"obs": {
   "host": "localhost",
   "port": 4455,
-  "password": ""
-}
-```
-
-**Local OBS, with password:**
-```json
-"obsWebSocket": {
-  "host": "localhost",
-  "port": 4455,
-  "password": "s3cur3p@ssw0rd"
-}
-```
-
-**Remote OBS:**
-```json
-"obsWebSocket": {
-  "host": "192.168.1.50",
-  "port": 4455,
-  "password": "remote_password"
+  "password": "s3cur3p@ssw0rd",
+  "scheduleScene": "_SCHEDULER",
+  "scheduleSceneAux": "_SCHEDULER_AUX"
 }
 ```
 
 **Troubleshooting OBS connection:**
 - **Connection refused**: Check OBS is running and WebSocket server is enabled
 - **Authentication failed**: Verify password matches OBS settings
-- **Host unreachable**: Check firewall, network routing (ping `<host>`)
+- **Host unreachable**: Check firewall and network routing
 
 #### 6.3.2 Web Server Configuration (`webServer`)
 
-Controls the HTTP server that hosts the web interface and HLS preview streams.
+Controls the HTTP server that hosts the web interface.
 
-**`host`** (string, required)
-- Network interface to bind to
-- **Options:**
-  - `"0.0.0.0"` - Bind to all interfaces (accessible from network)
-  - `"localhost"` or `"127.0.0.1"` - Local only (most secure)
-  - Specific IP - Bind to specific interface (e.g., `"192.168.1.10"`)
-
-**When to use each:**
-- **`0.0.0.0`**: Multi-device access (recommended for production)
-- **`localhost`**: Testing, single-user, security-sensitive environments
-
-**`port`** (integer, required)
+**`port`** (string)
 - HTTP server port
-- **Default:** `8080`
-- **Range:** 1024-65535 (avoid 80/443 unless running as root)
-- **Note:** Must be free (not used by other applications)
+- **Default:** `"8080"`
 
-**`hlsPath`** (string, required)
+**`user`** (string)
+- HTTP Basic Authentication username
+- **Default:** `""` (empty = authentication disabled)
+
+**`password`** (string)
+- HTTP Basic Authentication password
+- **Default:** `""` (empty = authentication disabled)
+
+**`hlsPath`** (string)
 - Directory for HLS preview files (relative to executable)
 - **Default:** `"hls"`
-- **Important:** This is the **correct** configuration field (NOT `paths.hlsBase`)
-- **Directory must:**
-  - Exist (create with `mkdir hls`)
-  - Be writable by Scene Scheduler process
-  - Have sufficient disk space (each preview uses 5-15 MB)
 
-**Example configurations:**
+**`enableTls`** (boolean)
+- Enable HTTPS (TLS) for the web server
+- **Default:** `false`
 
-**Network-accessible (recommended):**
+**`certFilePath`** / **`keyFilePath`** (string)
+- Path to TLS certificate and private key files (PEM format)
+- **Required when:** `enableTls` is `true`
+
+**Example with authentication:**
 ```json
 "webServer": {
-  "host": "0.0.0.0",
-  "port": 8080,
+  "port": "8080",
+  "user": "admin",
+  "password": "secure_password",
   "hlsPath": "hls"
 }
 ```
 
-**Local-only (secure):**
+**Example with TLS:**
 ```json
 "webServer": {
-  "host": "localhost",
-  "port": 8080,
-  "hlsPath": "hls"
+  "port": "443",
+  "user": "admin",
+  "password": "secure_password",
+  "hlsPath": "hls",
+  "enableTls": true,
+  "certFilePath": "/etc/ssl/certs/scenescheduler.pem",
+  "keyFilePath": "/etc/ssl/private/scenescheduler-key.pem"
 }
 ```
 
-**Custom port:**
+#### 6.3.3 Media Source Configuration (`mediaSource`)
+
+Controls video and audio device capture for WebRTC streaming.
+
+**`videoDeviceIdentifier`** (string) - Video capture device identifier
+**`audioDeviceIdentifier`** (string) - Audio capture device identifier
+**`quality`** (string) - Quality preset: `"low"`, `"medium"`, or `"high"` (default: `"low"`)
+
+**Example:**
 ```json
-"webServer": {
-  "host": "0.0.0.0",
-  "port": 3000,
-  "hlsPath": "preview_files"
+"mediaSource": {
+  "videoDeviceIdentifier": "video0",
+  "audioDeviceIdentifier": "default",
+  "quality": "medium"
 }
 ```
-
-**Accessing the web interface:**
-- Local: `http://localhost:8080`
-- From network: `http://<server-ip>:8080` (e.g., `http://192.168.1.100:8080`)
-
-**Troubleshooting web server:**
-- **Port already in use**: Change `port` to unused value (e.g., 8081, 3000)
-- **Cannot access from network**: Check `host` is `0.0.0.0`, verify firewall allows port
-- **Permission denied (port 80)**: Use port ≥1024 or run as root (not recommended)
-
-#### 6.3.3 Schedule Configuration (`schedule`)
-
-Controls schedule file location and scene naming.
-
-**`jsonPath`** (string, required)
-- Path to schedule JSON file (relative to executable)
-- **Default:** `"schedule.json"`
-- **Format:** JSON array of events (see Section 11.1 for schema)
-- **Permissions:** Must be readable and writable
-- **Backup:** Recommended to keep backups of this file
-
-**`scheduleSceneAux`** (string, required)
-- Name of the auxiliary OBS scene used for staging
-- **Default:** `"scheduleSceneAux"`
-- **Auto-creation:** Scene Scheduler automatically creates this scene if it doesn't exist
-- **Purpose:** Hidden scene where sources are preloaded before transitions
-
-**Important notes:**
-- The auxiliary scene name is case-sensitive
-- The scene should remain empty (Scene Scheduler manages its content automatically)
-- Don't delete this scene while Scene Scheduler is running
-- If you change the scene name in config.json, Scene Scheduler will create a new scene with that name
-
-**Example configurations:**
-
-**Default:**
-```json
-"schedule": {
-  "jsonPath": "schedule.json",
-  "scheduleSceneAux": "scheduleSceneAux"
-}
-```
-
-**Custom schedule file location:**
-```json
-"schedule": {
-  "jsonPath": "/var/lib/scenescheduler/production_schedule.json",
-  "scheduleSceneAux": "scheduleSceneAux"
-}
-```
-
-**Custom auxiliary scene name:**
-```json
-"schedule": {
-  "jsonPath": "schedule.json",
-  "scheduleSceneAux": "staging_scene"
-}
-```
-
-**Troubleshooting schedule:**
-- **Schedule not loading**: Check `jsonPath` file exists and is valid JSON
-- **Scene not found error**: Check that scheduleSceneAux name in config.json matches (Scene Scheduler creates it automatically)
-- **Permission denied**: Ensure Scene Scheduler can read/write schedule file
 
 #### 6.3.4 Paths Configuration (`paths`)
 
-Controls locations of external binaries and tools.
+Controls file paths for logs and schedule data.
 
-**`hlsGenerator`** (string, required)
-- Path to `hls-generator` executable (relative to main executable)
-- **Default:** `"./hls-generator"`
-- **Purpose:** Generates HLS preview streams
-- **Requirements:**
-  - Must exist and be executable (`chmod +x hls-generator`)
-  - Must be compatible with your system (Linux x86_64)
-  - Must have OBS libraries available
+**`logFile`** (string) - Log output file path (default: `""`)
+**`schedule`** (string) - Schedule JSON file path (default: `"schedule.json"`)
 
-**Example configurations:**
-
-**Default (same directory):**
+**Example:**
 ```json
 "paths": {
-  "hlsGenerator": "./hls-generator"
+  "logFile": "logs.txt",
+  "schedule": "schedule.json"
 }
 ```
 
-**Absolute path:**
+#### 6.3.5 Scheduler Configuration (`scheduler`)
+
+Controls scheduler-specific behavior.
+
+**`defaultSource`** (object) - Optional backup source activated when no event is scheduled
+
+Fields: `name` (string), `inputKind` (string), `uri` (string), `inputSettings` (object), `transform` (object)
+
+**Example:**
 ```json
-"paths": {
-  "hlsGenerator": "/usr/local/bin/hls-generator"
+"scheduler": {
+  "defaultSource": {
+    "name": "StandbyImage",
+    "inputKind": "image_source",
+    "uri": "/path/to/standby.png",
+    "inputSettings": {}
+  }
 }
 ```
 
-**Subdirectory:**
-```json
-"paths": {
-  "hlsGenerator": "./bin/hls-generator"
-}
-```
-
-**Troubleshooting hls-generator:**
-- **File not found**: Verify file exists at specified path
-- **Permission denied**: Run `chmod +x hls-generator`
-- **Exec format error**: Binary not compatible with your system (wrong architecture)
-
-#### 6.3.5 Logging Configuration (`logging`)
-
-Controls application logging behavior.
-
-**`level`** (string, optional)
-- Log verbosity level
-- **Options:** `"debug"`, `"info"`, `"warn"`, `"error"`
-- **Default:** `"info"`
-- **Recommendation:**
-  - Production: `"info"` or `"warn"`
-  - Debugging: `"debug"`
-  - Critical only: `"error"`
-
-**`format`** (string, optional)
-- Log output format
-- **Options:**
-  - `"text"` - Human-readable (default)
-  - `"json"` - Machine-parseable (for log aggregation tools)
-- **Default:** `"text"`
-
-**Example configurations:**
-
-**Production (default):**
-```json
-"logging": {
-  "level": "info",
-  "format": "text"
-}
-```
-
-**Debugging:**
-```json
-"logging": {
-  "level": "debug",
-  "format": "text"
-}
-```
-
-**Log aggregation:**
-```json
-"logging": {
-  "level": "info",
-  "format": "json"
-}
-```
-
-**Minimal logging:**
-```json
-"logging": {
-  "level": "error",
-  "format": "text"
-}
-```
-
-**Log levels explained:**
-- **debug**: All messages (very verbose, includes internal state changes)
-- **info**: General information (startup, connections, event triggers)
-- **warn**: Warnings (non-critical issues, deprecated features)
-- **error**: Errors only (failures, exceptions)
-
-### 6.4 Environment Variables
-
-Some settings can be overridden with environment variables (useful for Docker, systemd):
-
-**`OBS_WS_HOST`** - Override `obsWebSocket.host`
-```bash
-export OBS_WS_HOST="192.168.1.50"
-./scenescheduler
-```
-
-**`OBS_WS_PORT`** - Override `obsWebSocket.port`
-```bash
-export OBS_WS_PORT="4456"
-./scenescheduler
-```
-
-**`OBS_WS_PASSWORD`** - Override `obsWebSocket.password` (recommended for security)
-```bash
-export OBS_WS_PASSWORD="s3cur3p@ss"
-./scenescheduler
-```
-
-**`WEB_SERVER_PORT`** - Override `webServer.port`
-```bash
-export WEB_SERVER_PORT="3000"
-./scenescheduler
-```
-
-**Priority:** Environment variables > config.json > defaults
-
-### 6.5 Configuration Validation
+### 6.4 Configuration Validation
 
 Scene Scheduler validates configuration on startup:
 
-**Validation checks:**
-1. ✅ Config file exists and is valid JSON
-2. ✅ Required fields are present
-3. ✅ Port numbers are in valid range (1-65535)
-4. ✅ File paths are accessible
-5. ✅ HLS directory exists and is writable
+**Required fields:**
+- `obs.scheduleScene` and `obs.scheduleSceneAux` must be present
+- `webServer.certFilePath` and `keyFilePath` required when `enableTls` is true
+- `webServer.hlsPath` must be a safe relative path (no `..` or absolute paths)
 
-**Startup behavior:**
-- **Valid config**: Application starts normally
-- **Invalid config**: Error logged and application exits
-- **Missing config**: Uses defaults (may fail if OBS requires password)
+**Warnings (non-fatal):**
+- `obs.password` is empty
+- `webServer.user` or `webServer.password` is empty
 
 **Example validation errors:**
-
-**Invalid JSON:**
 ```
-FATAL: Failed to parse config.json: invalid character '}' looking for beginning of object key
+config validation failed: obs.scheduleScene and obs.scheduleSceneAux are required fields
 ```
-**Solution:** Fix JSON syntax (check for missing commas, quotes)
-
-**Missing required field:**
 ```
-FATAL: Missing required config field: obsWebSocket.host
+config validation failed: webServer.hlsPath must be a relative path
 ```
-**Solution:** Add missing field to config.json
 
-**Invalid port:**
-```
-FATAL: Invalid port number: 99999 (must be 1-65535)
-```
-**Solution:** Use valid port number
+### 6.5 Configuration Examples for Common Scenarios
 
-### 6.6 Configuration Examples for Common Scenarios
-
-#### Scenario 1: Single Computer Setup
-Both OBS and Scene Scheduler on the same machine, accessed locally only.
-
+#### Scenario 1: Single Computer (Minimal)
 ```json
 {
-  "obsWebSocket": {
+  "obs": {
     "host": "localhost",
     "port": 4455,
-    "password": ""
+    "password": "",
+    "scheduleScene": "_SCHEDULER",
+    "scheduleSceneAux": "_SCHEDULER_AUX"
   },
   "webServer": {
-    "host": "localhost",
-    "port": 8080,
+    "port": "8080",
     "hlsPath": "hls"
   },
-  "schedule": {
-    "jsonPath": "schedule.json",
-    "scheduleSceneAux": "scheduleSceneAux"
-  },
   "paths": {
-    "hlsGenerator": "./hls-generator"
+    "schedule": "schedule.json"
   }
 }
 ```
 
-**Access:** `http://localhost:8080`
-
-#### Scenario 2: Production Server (Network Access)
-Scene Scheduler accessible from multiple devices on the network.
-
+#### Scenario 2: Production Server (Recommended)
 ```json
 {
-  "obsWebSocket": {
+  "obs": {
     "host": "localhost",
     "port": 4455,
-    "password": "production_password_123"
+    "password": "production_password",
+    "scheduleScene": "_SCHEDULER",
+    "scheduleSceneAux": "_SCHEDULER_AUX",
+    "sourceNamePrefix": "_sched_"
   },
   "webServer": {
-    "host": "0.0.0.0",
-    "port": 8080,
+    "port": "8080",
+    "user": "admin",
+    "password": "web_admin_password",
     "hlsPath": "hls"
   },
-  "schedule": {
-    "jsonPath": "/var/lib/scenescheduler/schedule.json",
-    "scheduleSceneAux": "scheduleSceneAux"
-  },
   "paths": {
-    "hlsGenerator": "/opt/scenescheduler/hls-generator"
+    "logFile": "logs.txt",
+    "schedule": "schedule.json"
   },
-  "logging": {
-    "level": "info",
-    "format": "text"
+  "scheduler": {
+    "defaultSource": {
+      "name": "StandbyScreen",
+      "inputKind": "image_source",
+      "uri": "/opt/scenescheduler/standby.png",
+      "inputSettings": {}
+    }
   }
 }
 ```
 
-**Access:** `http://192.168.1.100:8080` (use server's IP)
-
-#### Scenario 3: Remote OBS Control
-Scene Scheduler on a different machine than OBS.
-
+#### Scenario 3: Remote OBS
 ```json
 {
-  "obsWebSocket": {
+  "obs": {
     "host": "192.168.1.50",
     "port": 4455,
-    "password": "obs_remote_password"
+    "password": "obs_remote_password",
+    "reconnectInterval": 10,
+    "scheduleScene": "_SCHEDULER",
+    "scheduleSceneAux": "_SCHEDULER_AUX"
   },
   "webServer": {
-    "host": "0.0.0.0",
-    "port": 8080,
+    "port": "8080",
+    "user": "operator",
+    "password": "operator_pass",
     "hlsPath": "hls"
   },
-  "schedule": {
-    "jsonPath": "schedule.json",
-    "scheduleSceneAux": "scheduleSceneAux"
-  },
   "paths": {
-    "hlsGenerator": "./hls-generator"
+    "schedule": "schedule.json"
   }
 }
-```
-
-**Requirements:**
-- OBS machine (192.168.1.50) must have WebSocket enabled
-- Firewall must allow port 4455
-- Both machines on same network (or VPN)
-
-#### Scenario 4: Docker Deployment
-Using environment variables for dynamic configuration.
-
-**config.json (minimal):**
-```json
-{
-  "schedule": {
-    "jsonPath": "/data/schedule.json",
-    "scheduleSceneAux": "scheduleSceneAux"
-  },
-  "paths": {
-    "hlsGenerator": "/app/hls-generator"
-  }
-}
-```
-
-**Docker run command:**
-```bash
-docker run -d \
-  -e OBS_WS_HOST=192.168.1.50 \
-  -e OBS_WS_PORT=4455 \
-  -e OBS_WS_PASSWORD=secure_password \
-  -e WEB_SERVER_PORT=8080 \
-  -v /path/to/schedule.json:/data/schedule.json \
-  -p 8080:8080 \
-  scenescheduler:latest
 ```
 
 ### 6.7 Security Considerations
