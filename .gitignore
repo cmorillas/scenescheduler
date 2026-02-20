@@ -43,3 +43,6 @@ go.work.sum
 # OS
 .DS_Store
 Thumbs.db
+*.bak
+*.tar.gz
+*.pdf
