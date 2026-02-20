@@ -24,25 +24,25 @@ Before running the project, assure you have the following installed:
 
 1. **Clone the repository:**
    ```bash
-   git clone https://github.com/yourusername/scenescheduler.git
+   git clone https://github.com/cmorillas/scenescheduler.git
    cd scenescheduler
    ```
 
-2. **Configure Settings:**
-   - Copy or modify the `config.json` file. Ensure you define your OBS WebSocket password, web server credentials, and preferred media devices.
-
-3. **Install Dependencies and Build the Application:**
+2. **Build the Application:**
    ```bash
    go mod download
-   go build -o scenescheduler
+   go build -o build/scenescheduler .
    ```
+
+3. **Configure Settings:**
+   - Modify `config.json` to set your OBS WebSocket password, web server credentials, and preferred media devices.
 
 ## Usage
 
 1. Open OBS Studio and ensure the **WebSocket Server** is enabled (Tools -> WebSocket Server Settings). Set the port and password to match your `config.json`.
 2. Start the Scene Scheduler application:
    ```bash
-   ./scenescheduler
+   ./build/scenescheduler
    ```
 3. The GUI will appear. You can define schedules using the `schedule.json` file or via the internal tools.
 4. **HLS Generator (Optional):** If you require HLS streaming conversion for source previews, download the companion tool from its own repository: [hls-generator](https://github.com/cmorillas/hls-generator). Place the binary in the same directory as the `scenescheduler` executable.
