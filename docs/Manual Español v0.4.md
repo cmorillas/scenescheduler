@@ -766,26 +766,25 @@ cp schedule.json.backup schedule.json
 ./scenescheduler
 ```
 
-### 4.8 Horarios Multi-Día
+### 4.8 Horarios Multi-Día y Eventos Recurrentes
 
-Scene Scheduler opera en un **reloj de 24 horas** (00:00:00 a 23:59:59). Para operaciones multi-día:
+Scene Scheduler tiene un potente **motor de recurrencia** integrado en su sistema que se configura directamente desde la interfaz de calendario (Editor View). 
 
-**Enfoque 1: Repetición diaria (manual)**
-- Configure eventos para un solo día
-- Copie y ajuste tiempos para días subsiguientes
-- Use nombres descriptivos para rastrear días (ej., "Monday Morning Show")
+A diferencia de sistemas de programación más simples, Scene Scheduler no está limitado a un ciclo único de 24 horas. Puede manejar programaciones complejas y recurrentes perfectamente:
 
-**Enfoque 2: Horario continuo 24/7**
-- Cree eventos que abarquen el día completo
-- Use duraciones largas para períodos nocturnos
-- Ejemplo: Un evento a las 23:00:00 con duración de 8 horas cubre la noche
+**Repetición por Días de la Semana:**
+Puede seleccionar específicamente qué días se debe ejecutar un evento. (Por ejemplo, de Lunes a Viernes, solo los Fines de Semana, o simplemente los Miércoles).
 
-**Enfoque 3: Patrones semanales**
-- Cree una plantilla para cada día de la semana
-- Cambie horarios manualmente diariamente (reemplace `schedule.json`)
-- Considere scripting para automatización
+**Límites Universitarios (Inicio/Fin de Recurrencia):**
+Si está programando fechas como temporadas o eventos temporales, puede establecer fechas de inicio y finalización del evento:
+- **StartRecur:** El evento no comenzará a existir antes de esta fecha.
+- **EndRecur:** El evento dejará de activarse automáticamente después de este día.
 
-**Nota**: Scene Scheduler v1.6 no admite repetición diaria automática o condiciones de día de la semana. Cada evento se ejecuta una vez por día en su tiempo programado.
+**Eventos "Overnight" (A través de la Medianoche):**
+El motor reconoce automáticamente y gestiona sin problemas eventos que abarcan cambios de día continuo. Un evento que comience a las `22:00:00` y tenga una duración de `04:00:00` continuará activo y se mantendrá ejecutándose hasta las `02:00:00` del día siguiente sin interrupciones.
+
+**Eventos Únicos (One-Offs):**
+Para algo que solo va a ocurrir una vez en un día concreto, puede simplemente desmarcar la opción de recurrencia en la pestaña del evento en la UI, especificando la fecha absoluta.
 
 ### 4.9 Manejando Conflictos de Horario
 
