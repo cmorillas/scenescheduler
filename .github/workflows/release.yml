@@ -1,0 +1,107 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*' # Trigger build on tags starting with 'v'
+
+jobs:
+  build:
+    name: Build & Release for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    
+    strategy:
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact: scenescheduler-linux-amd64
+            goos: linux
+            goarch: amd64
+    
+          - os: windows-latest
+            artifact: scenescheduler-windows-amd64
+            goos: windows
+            goarch: amd64
+            
+          - os: macos-latest
+            artifact: scenescheduler-macos-amd64
+            goos: darwin
+            goarch: amd64
+            
+          - os: macos-latest
+            artifact: scenescheduler-macos-arm64
+            goos: darwin
+            goarch: arm64
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: '1.23' # Or whatever lowest version is required
+
+      - name: Compile Go Binary (Scene Scheduler)
+        env:
+          GOOS: ${{ matrix.goos }}
+          GOARCH: ${{ matrix.goarch }}
+        run: |
+          go build -ldflags="-s -w" -o scenescheduler${{ matrix.os == 'windows-latest' && '.exe' || '' }} .
+
+      # macOS / Linux C++ Build
+      - name: Compile C++ hls-generator (Unix)
+        if: matrix.os != 'windows-latest'
+        run: |
+          cd third-party/hls-generator
+          mkdir build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+          make
+          cp hls-generator ../../../hls-generator
+
+      # Windows C++ Build (MSVC natively on the runner or MinGW)
+      - name: Compile C++ hls-generator (Windows)
+        if: matrix.os == 'windows-latest'
+        run: |
+          cd third-party/hls-generator
+          mkdir build
+          cd build
+          cmake .. -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
+          mingw32-make
+          copy hls-generator.exe ..\..\..\hls-generator.exe
+        shell: cmd
+
+      # Package phase
+      - name: Package Linux/macOS
+        if: matrix.os != 'windows-latest'
+        run: |
+          mkdir ${{ matrix.artifact }}
+          cp scenescheduler hls-generator config.json schedule.json README.md LICENSE THIRD-PARTY-LICENSES.txt "User Manual (English).pdf" "User Manual (Spanish).pdf" ${{ matrix.artifact }}/
+          tar -czvf ${{ matrix.artifact }}.tar.gz ${{ matrix.artifact }}/
+
+      - name: Package Windows
+        if: matrix.os == 'windows-latest'
+        run: |
+          md ${{ matrix.artifact }}
+          copy scenescheduler.exe ${{ matrix.artifact }}\
+          copy hls-generator.exe ${{ matrix.artifact }}\
+          copy config.json ${{ matrix.artifact }}\
+          copy schedule.json ${{ matrix.artifact }}\
+          copy README.md ${{ matrix.artifact }}\
+          copy LICENSE ${{ matrix.artifact }}\
+          copy THIRD-PARTY-LICENSES.txt ${{ matrix.artifact }}\
+          copy "User Manual (English).pdf" ${{ matrix.artifact }}\
+          copy "User Manual (Spanish).pdf" ${{ matrix.artifact }}\
+          Compress-Archive -Path ${{ matrix.artifact }} -DestinationPath ${{ matrix.artifact }}.zip
+        shell: powershell
+
+      - name: Upload Release Assets
+        uses: softprops/action-gh-release@v1
+        with:
+          files: |
+            ${{ matrix.artifact }}.tar.gz
+            ${{ matrix.artifact }}.zip
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
