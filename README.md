@@ -8,7 +8,7 @@
 
 - **Automated Scene Switching:** Control OBS Studio via WebSockets based on precise timing schedules.
 - **Multiple Source Support:** Natively schedule local videos (FFmpeg), images, browser sources, and live media streams.
-- **Dynamic HLS Generation:** Includes a highly optimized, dynamically-linked `hls-generator` tool (C++) to process video streams into HLS without requiring a heavy, system-wide FFmpeg installation.
+- **Dynamic HLS Generation:** Supports an optional companion tool [`hls-generator`](https://github.com/cmorillas/hls-generator) (C++) to process video streams into HLS without requiring a heavy, system-wide FFmpeg installation.
 - **Web Interface:** Control and monitor the schedule remotely via the built-in HTTP server.
 - **Desktop GUI:** Built with [Fyne](https://fyne.io/) for cross-platform desktop management.
 - **Event-Driven Architecture:** Highly modular backend using an internal event bus for maximum stability.
@@ -45,13 +45,12 @@ Before running the project, assure you have the following installed:
    ./scenescheduler
    ```
 3. The GUI will appear. You can define schedules using the `schedule.json` file or via the internal tools.
-4. **HLS Generator:** If you require HLS streaming conversion, consult `backend/SPECIFICATIONS.md` for instructions on building and using the standalone C++ generator.
+4. **HLS Generator (Optional):** If you require HLS streaming conversion for source previews, download the companion tool from its own repository: [hls-generator](https://github.com/cmorillas/hls-generator). Place the binary in the same directory as the `scenescheduler` executable.
 
 ## Directory Structure
 
 - `/backend`: Core logic (Scheduler, EventBus, Core Logic, OBS Client, Web Server).
 - `/frontend`: Web UI assets and public files.
-- `/hls-generator`: C++ standalone tool for converting varied video inputs to HTTP Live Streaming (HLS) formats.
 
 ## License
 
