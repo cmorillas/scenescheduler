@@ -47,3 +47,4 @@ Thumbs.db
 *.bak
 *.tar.gz
 *.pdf
+docs/Specs*
