@@ -1,0 +1,45 @@
+# Binaries and build artifacts
+scenescheduler
+hls-generator
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binaries
+*.test
+
+# Output of the go coverage tool
+*.out
+
+# Runtime files
+logs.txt
+*.log
+
+# HLS preview output
+hls_preview_output/
+
+# Configuration that might contain secrets (optional - remove if you want to track it)
+# config.json
+
+# Schedule data (optional - remove if you want to track it)
+# schedule.json
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Ide
+.claude/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db

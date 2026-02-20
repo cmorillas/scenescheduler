@@ -1,0 +1,46 @@
+/* File: components/info-window/info-window.css */
+
+.info-window-content {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  padding: 1rem;  /* ✅ Mover el padding aquí */
+  box-sizing: border-box;
+}
+
+.info-window-content h3 {
+  margin: 0 0 0.5rem 0;
+}
+
+#log-output {
+  flex: 1 1 0;  /* ✅ Usar 0 como base en lugar de auto */
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 0.5rem;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  font-family: monospace;
+  font-size: 0.75rem;
+}
+
+#info-status-bar {
+  margin-top: 0.5rem;
+  padding: 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.status-light {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+}
+
+.status-light.green { background: var(--success); }
+.status-light.red { background: var(--danger); }
+.status-light.orange { background: #f59e0b; }

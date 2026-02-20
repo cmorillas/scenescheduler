@@ -1,0 +1,236 @@
+// backend/obsclient/internal/switcher/switcher.go
+package switcher
+
+import (
+	"fmt"
+	"sync"
+	"time"
+
+	"scenescheduler/backend/config"
+	"scenescheduler/backend/eventbus"
+	"scenescheduler/backend/logger"
+
+	"github.com/andreykaipov/goobs"
+	"github.com/andreykaipov/goobs/api/requests/sceneitems"
+)
+
+// This file defines the Switcher, a component dedicated to the complex,
+// multi-step process of transitioning between OBS scenes. It encapsulates all
+// logic related to staging, promotion, activation, and cleanup of sources.
+//
+// ERROR HANDLING POLICY:
+// ----------------------
+// Operations are categorized by their impact on system consistency:
+//
+// 1. CRITICAL (Rollback + Return Error):
+//    - Creating inputs
+//    - Duplicating to main scene
+//    - Activating items in main scene
+//    These failures leave the system in an inconsistent state and require
+//    immediate rollback and error propagation.
+//
+// 2. IMPORTANT (Warn + Continue):
+//    - Applying transforms
+//    - Cleaning up known resources
+//    These failures are undesirable but don't prevent the switch from completing.
+//    They are logged as warnings and the operation continues.
+//
+// 3. CLEANUP (Silent):
+//    - Removing temporary items
+//    - Removing orphaned items
+//    - Hiding items before removal
+//    These failures are expected (resource may already be gone) and are handled
+//    silently or with debug-level logging only.
+//
+// Order of sections:
+// 1) Types
+// 2) Constructor
+// 3) Public Methods (API of the component)
+// 4) Helpers
+
+// ============================================================================
+// TYPES
+// ============================================================================
+
+// Switcher encapsulates the complex, multi-step logic for transitioning
+// between scenes in OBS. It is designed to be a stateful component that
+// performs a single, well-defined task.
+type Switcher struct {
+	// --- Dependencies ---
+	logger *logger.Logger
+	config *config.OBSConfig
+
+	// --- Synchronization ---
+	switchMu sync.Mutex // Serializes all switching operations
+}
+
+// SwitchResult contains the outcome of a successful program switch operation.
+// The parent module uses this to publish events.
+type SwitchResult struct {
+	PreviousProgram *eventbus.Program
+	CurrentProgram  *eventbus.Program
+	SeekOffsetMs    int64
+	Timestamp       time.Time
+}
+
+// ============================================================================
+// CONSTRUCTOR
+// ============================================================================
+
+// New creates a new Switcher instance.
+func New(log *logger.Logger, cfg *config.OBSConfig) *Switcher {
+	return &Switcher{
+		logger: log.WithModule("obsclient.switcher"),
+		config: cfg,
+	}
+}
+
+// ============================================================================
+// PUBLIC METHODS
+// ============================================================================
+
+// PerformSwitch handles the transactional logic of switching from one program to another.
+// It performs a 6-step staging process to ensure glitch-free transitions:
+// 1. Stage new source in temp scene
+// 2. Duplicate to main scene
+// 3. Activate new source
+// 4. Cleanup temp scene
+// 5. Cleanup previous program
+// 6. Cleanup any orphaned managed sources
+//
+// Parameters:
+//   - client: Active OBS websocket client
+//   - current: Currently active program (nil if none)
+//   - target: Program to switch to (nil to clear all)
+//   - offset: Time offset for media sources (currently unused)
+//
+// Returns:
+//   - *SwitchResult: Information about the completed switch for event publishing
+//   - error: Any error that occurred during the switch
+func (s *Switcher) PerformSwitch(
+	client *goobs.Client,
+	current *eventbus.Program,
+	target *eventbus.Program,
+	offset time.Duration,
+) (*SwitchResult, error) {
+	s.switchMu.Lock()
+	defer s.switchMu.Unlock()
+
+	mainScene := s.config.ScheduleScene
+	tmpScene := s.config.ScheduleSceneAux
+	var newTempSceneItemID int
+	var newMainSceneItemID int
+	var err error
+
+	s.logger.Debug("Starting program switch",
+		"current", getTargetTitle(current),
+		"target", getTargetTitle(target),
+		"mainScene", mainScene,
+		"tmpScene", tmpScene)
+
+	// --- 1. STAGING: Create and prepare the new source in the temp scene ---
+	if target != nil {
+		// CRITICAL: Input creation failure is fatal
+		newTempSceneItemID, err = s.createOBSInput(client, target)
+		if err != nil {
+			s.logger.Error("Failed to create OBS input", "error", err)
+			return nil, fmt.Errorf("failed to create OBS input for '%s': %w", target.Title, err)
+		}
+
+		// IMPORTANT: Transform failure is non-fatal, log and continue
+		if err := s.applyTransformsToSceneItem(client, tmpScene, newTempSceneItemID, target.Transform); err != nil {
+			s.logger.Warn("Failed to apply transform to temp scene item, using defaults.",
+				"error", err,
+				"scene", tmpScene)
+		}
+	} else {
+		s.logger.InfoGui("Target program is nil, will cleanup all managed sources")
+	}
+
+	// --- 2. PROMOTION: Duplicate the prepared item to the main scene ---
+	if target != nil {
+		// CRITICAL: Duplication failure is fatal, requires rollback
+		newMainSceneItemID, err = s.duplicateSceneItem(client, tmpScene, mainScene, newTempSceneItemID)
+		if err != nil {
+			s.logger.Error("Failed to duplicate item to main scene, rolling back.", "error", err)
+			// CLEANUP: Rollback is best-effort
+			_ = s.removeOBSInput(client, tmpScene, target)
+			return nil, fmt.Errorf("failed to duplicate item for '%s': %w", target.Title, err)
+		}
+	}
+
+	// --- 3. ACTIVATION: Make the new source visible in the main scene ---
+	if target != nil {
+		// IMPORTANT: Transform failure is non-fatal, log and continue
+		if err := s.applyTransformsToSceneItem(client, mainScene, newMainSceneItemID, target.Transform); err != nil {
+			s.logger.Warn("Failed to apply transform to main scene item, using defaults.",
+				"error", err,
+				"scene", mainScene)
+		}
+
+		// CRITICAL: Activation failure is fatal, requires rollback
+		if err := s.setSceneItemEnabled(client, mainScene, newMainSceneItemID, true); err != nil {
+			s.logger.Error("Failed to make new scene item visible, rolling back.", "error", err)
+			// CLEANUP: Rollback is best-effort
+			_ = s.removeOBSInput(client, tmpScene, target)
+			_ = s.removeOBSInput(client, mainScene, target)
+			return nil, fmt.Errorf("failed to make new item visible for '%s': %w", target.Title, err)
+		}
+	}
+
+	// --- 4. CLEANUP (Staging): Remove the temporary item for the new program ---
+	if target != nil {
+		// CLEANUP: Temp item removal is best-effort, failure is silent
+		if _, remErr := client.SceneItems.RemoveSceneItem(&sceneitems.RemoveSceneItemParams{
+			SceneName:   &tmpScene,
+			SceneItemId: &newTempSceneItemID,
+		}); remErr != nil {
+			s.logger.Debug("Could not remove temp scene item (may already be gone)",
+				"sceneItemId", newTempSceneItemID,
+				"error", remErr)
+		}
+	}
+
+	// --- 5. CLEANUP (Previous): Remove the previous program if known ---
+	if current != nil {
+		s.logger.InfoGui("Cleaning up previous program", "program", getTargetTitle(current))
+		// IMPORTANT: Known cleanup failure should be logged
+		if err := s.cleanupSpecificProgram(client, mainScene, current); err != nil {
+			s.logger.Warn("Failed to cleanup previous program, may leave orphaned resources.",
+				"program", getTargetTitle(current),
+				"error", err)
+		}
+	}
+
+	// --- 6. CLEANUP (Orphans): Remove any other managed sources (failsafe) ---
+	// IMPORTANT: Orphan cleanup failure should be logged
+	if err := s.cleanupOrphanedManagedSources(client, mainScene, current, target); err != nil {
+		s.logger.Warn("Failed to cleanup orphaned managed sources.", "error", err)
+	}
+
+	s.logger.InfoGui("Program switch completed successfully", "target", getTargetTitle(target))
+	
+	// Return the result for the parent to publish as an event
+	return &SwitchResult{
+		PreviousProgram: current,
+		CurrentProgram:  target,
+		SeekOffsetMs:    offset.Milliseconds(),
+		Timestamp:       time.Now(),
+	}, nil
+}
+
+// ============================================================================
+// HELPERS
+// ============================================================================
+
+// getTargetTitle returns a display-friendly name for a program object,
+// primarily used for logging.
+func getTargetTitle(p *eventbus.Program) string {
+	if p == nil {
+		return "<none>"
+	}
+	if p.Title != "" {
+		return p.Title
+	}
+	return fmt.Sprintf("Untitled (%s)", p.ID)
+}

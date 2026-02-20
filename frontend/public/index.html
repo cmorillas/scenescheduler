@@ -1,0 +1,390 @@
+<!DOCTYPE html>
+<!--
+Scene Scheduler - OBS Automation Software
+Copyright (c) 2025 Scene Scheduler, S.L. - All Rights Reserved
+This is proprietary software. Unauthorized copying or distribution is prohibited.
+-->
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Scene Scheduler - OBS Automation</title>
+
+	<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+
+	<!-- FullCalendar -->
+	<script src="vendor/fullcalendar-6.1.19/dist/index.global.min.js"></script>
+
+	<!-- Global Styles -->
+	<link rel="stylesheet" href="main.css">
+
+	<!-- Component Styles -->
+	<link rel="stylesheet" href="components/view-switcher/view-switcher.css">
+	<link rel="stylesheet" href="components/views-layout.css">
+	<link rel="stylesheet" href="components/calendar/calendar.css">
+	<link rel="stylesheet" href="components/calendar/modal.css">
+	<link rel="stylesheet" href="components/info-window/info-window.css">
+	<link rel="stylesheet" href="components/live-preview/live-preview.css">
+</head>
+<body>
+	<div id="app">
+		<!-- Header with App Title and View Selector -->
+		<header class="app-header">
+			<h1 class="app-title">Scene Scheduler</h1>
+
+			<!-- Connection Status (Triple: Server + OBS + Preview) -->
+			<div class="connection-status">
+				<div class="status-item" id="server-status" title="Server: Disconnected">
+					<div class="status-light red"></div>
+					<span class="status-label">Server</span>
+				</div>
+				<span class="status-separator">•</span>
+				<div class="status-item" id="obs-status" title="OBS: Disconnected">
+					<div class="status-light red"></div>
+					<span class="status-label">OBS</span>
+				</div>
+				<span class="status-separator">•</span>
+				<div class="status-item" id="preview-status" title="Preview: No Stream">
+					<div class="status-light red"></div>
+					<span class="status-label">Preview</span>
+				</div>
+			</div>
+
+			<!-- Editor Status: Sync state (only visible in Editor view) -->
+			<div id="editor-status" class="header-status">
+				<div class="status-circle"></div>
+				<span id="editor-status-text">Synced</span>
+			</div>
+
+			<div class="view-selector">
+				<label for="view-dropdown">View:</label>
+				<select id="view-dropdown" class="view-dropdown">
+					<option value="monitor" selected>📺 Monitor</option>
+					<option value="editor">📝 Editor</option>
+				</select>
+			</div>
+		</header>
+
+		<!-- Monitor View -->
+		<div class="app-view active" id="monitor-view">
+			<div class="monitor-layout">
+				<!-- Left Sidebar -->
+				<aside class="monitor-sidebar">
+					<!-- Live Preview -->
+					<section class="panel" id="live-preview-container" aria-labelledby="preview-heading">
+						<h3 id="preview-heading">Live Preview</h3>
+						<video id="video-preview" controls></video>
+						<div id="preview-status" class="status-indicator">
+							<div class="status-light" id="preview-status-light"></div>
+							<span id="preview-status-text">Connecting...</span>
+						</div>
+					</section>
+
+					<!-- Activity Log / Info Window -->
+					<section class="panel" id="info-window-container" aria-labelledby="info-heading">
+						<h3 id="info-heading">Activity Log</h3>
+						<div id="log-output" aria-live="polite" aria-atomic="false"></div>
+					</section>
+				</aside>
+
+				<!-- Monitor Calendar (Read-only) -->
+				<main class="monitor-main">
+					<section class="panel calendar-panel" aria-labelledby="monitor-calendar-heading">
+						<div id="monitor-calendar"></div>
+					</section>
+				</main>
+			</div>
+		</div>
+
+		<!-- Editor View -->
+		<div class="app-view" id="editor-view">
+			<div class="editor-layout">
+				<!-- Editor Calendar (Editable) -->
+				<main class="editor-main">
+					<section class="panel calendar-panel" aria-labelledby="editor-calendar-heading">
+						<div id="editor-calendar"></div>
+					</section>
+				</main>
+			</div>
+		</div>
+	</div>
+
+	<!-- Task Editor Modal -->
+	<div id="task-modal" class="modal" role="dialog" aria-labelledby="modal-title-text" aria-modal="true" style="display: none;">
+		<div class="modal-content" id="draggable-content">
+			<header class="modal-header" id="drag-handle">
+				<div class="modal-header-left">
+					<h3 id="modal-title-text">New Task</h3>
+					<label class="switch">
+						<input type="checkbox" id="task-enabled" checked>
+						<span class="slider"></span>
+						<span class="switch-label">Enabled</span>
+					</label>
+				</div>
+				<button type="button" class="icon-btn" id="close-modal-btn" aria-label="Close">&times;</button>
+			</header>
+
+			<form id="task-form">
+				<!-- Title (always visible) -->
+				<div class="form-group">
+					<label for="task-title">Title *</label>
+					<input id="task-title" name="title" type="text" placeholder="Task name">
+				</div>
+
+				<!-- Tabs Container -->
+				<div class="tabs-container">
+					<nav class="tab-nav">
+						<button type="button" class="tab-btn active" data-target="#general-tab">General</button>
+						<button type="button" class="tab-btn" data-target="#source-tab">Source</button>
+						<button type="button" class="tab-btn" data-target="#timing-tab">Timing</button>
+						<button type="button" class="tab-btn" data-target="#behavior-tab">Behavior</button>
+						<button type="button" class="tab-btn" data-target="#preview-tab">Preview</button>
+					</nav>
+
+					<div class="tab-content">
+						<!-- Tab 1: General -->
+						<div id="general-tab" class="tab-pane active">
+							<div class="tab-container">
+								<div class="form-group">
+									<label for="task-description">Description</label>
+									<textarea id="task-description" name="description" placeholder="Optional description"></textarea>
+								</div>
+								<div class="form-group">
+									<label for="task-tags">Tags (space-separated)</label>
+									<input id="task-tags" type="text" placeholder="intro banner sponsor">
+								</div>
+								<div class="form-group">
+									<label for="task-classnames">ClassNames (for styling)</label>
+									<input id="task-classnames" type="text" placeholder="special-event highlight">
+								</div>
+								<div class="color-section">
+								<div class="color-grid">
+									<div class="form-group">
+										<label for="task-text-color">Text</label>
+										<div class="custom-color-input">
+											<input id="task-text-color" name="text-color" type="color" value="#ffffff">
+											<button type="button" class="clear-color-btn" aria-label="Clear color">&times;</button>
+										</div>
+									</div>
+									<div class="form-group">
+										<label for="task-background-color">Background</label>
+										<div class="custom-color-input">
+											<input id="task-background-color" name="background-color" type="color" value="#3b82f6">
+											<button type="button" class="clear-color-btn" aria-label="Clear color">&times;</button>
+										</div>
+									</div>
+									<div class="form-group">
+										<div class="label-with-hint">
+											<label for="task-border-color">Border</label>
+											<div class="recurring-hint-wrapper">
+												<span class="recurring-hint-icon">ⓘ</span>
+												<span class="hint-tooltip">For recurring events only</span>
+											</div>
+										</div>
+										<div class="custom-color-input">
+											<input id="task-border-color" name="border-color" type="color" value="#ffffff">
+											<button type="button" class="clear-color-btn" aria-label="Clear color">&times;</button>
+										</div>
+									</div>
+								</div>
+							</div>
+							</div>
+						</div>
+
+						<!-- Tab 2: Source -->
+						<div id="source-tab" class="tab-pane">
+							<div class="tab-container">
+								<div class="form-group">
+									<label for="task-input-name">Input Name *</label>
+									<input id="task-input-name" name="input-name" type="text" placeholder="e.g., YT_Chillhop">
+								</div>
+								<div class="source-row">
+									<div class="form-group">
+										<label for="task-input-kind">Input Kind *</label>
+										<select id="task-input-kind" name="input-kind">
+											<option value="ffmpeg_source">ffmpeg_source</option>
+											<option value="browser_source">browser_source</option>
+											<option value="vlc_source">vlc_source</option>
+											<option value="ndi_source">ndi_source</option>
+											<option value="image_source">image_source</option>
+										</select>
+									</div>
+									<div class="form-group">
+										<div class="source-row">
+											<label for="task-input-uri">URI *</label>
+											<div class="subhint" id="uri-hint">Provide a valid file/URL for the selected kind.</div>
+										</div>
+										<input id="task-input-uri" name="input-uri" type="text" placeholder="https://… or C:\…">
+									</div>
+								</div>
+								<div class="form-group">
+									<label for="task-input-settings">Settings (JSON)</label>
+									<textarea id="task-input-settings" name="input-settings" placeholder="{}"></textarea>
+								</div>
+								<div class="form-group">
+									<label for="task-transform">Transform (JSON)</label>
+									<textarea id="task-transform" name="transform" placeholder="{}"></textarea>
+								</div>
+							</div>
+						</div>
+
+						<!-- Tab 3: Timing -->
+						<div id="timing-tab" class="tab-pane">
+							<div class="timing-container">
+								<div class="timing-row">
+									<div class="timing-inputs">
+										<div class="form-group">
+											<label for="task-start">Start *</label>
+											<input id="task-start" name="start" type="datetime-local" step="1">
+										</div>
+										<div class="form-group">
+											<label for="task-end">End *</label>
+											<input id="task-end" name="end" type="datetime-local" step="1">
+										</div>
+									</div>
+									<div class="form-group">
+										<label for="task-duration">Duration</label>
+										<input id="task-duration" name="duration" type="text" readonly placeholder="00:00:00">
+									</div>
+								</div>
+							</div>
+							<div class="recurring-section">
+								<div class="recurring-header">
+									<label for="recurring-toggle" class="section-label">Recurring</label>
+									<label class="switch">
+										<input type="checkbox" id="recurring-toggle">
+										<span class="slider"></span>
+									</label>
+								</div>
+								<div class="recurring-container" id="recurring-fields" style="display: none;">
+									<div class="recurring-date-fields">
+										<div class="recurring-date-field">
+											<label for="recurring-start">From</label>
+											<input type="date" id="recurring-start" name="recurring-start">
+										</div>
+										<div class="recurring-date-field">
+											<label for="recurring-end">Until</label>
+											<input type="date" id="recurring-end" name="recurring-end">
+										</div>
+									</div>
+									<div class="weekdays-selector recurring-date-field">
+										<label id="weekdays-label">Week Days</label>
+										<div class="weekdays" role="group" aria-labelledby="weekdays-label">
+											<div class="weekday-item"><input type="checkbox" value="1" id="weekday-1"><label class="weekday-label" for="weekday-1">Mon</label></div>
+											<div class="weekday-item"><input type="checkbox" value="2" id="weekday-2"><label class="weekday-label" for="weekday-2">Tue</label></div>
+											<div class="weekday-item"><input type="checkbox" value="3" id="weekday-3"><label class="weekday-label" for="weekday-3">Wed</label></div>
+											<div class="weekday-item"><input type="checkbox" value="4" id="weekday-4"><label class="weekday-label" for="weekday-4">Thu</label></div>
+											<div class="weekday-item"><input type="checkbox" value="5" id="weekday-5"><label class="weekday-label" for="weekday-5">Fri</label></div>
+											<div class="weekday-item"><input type="checkbox" value="6" id="weekday-6"><label class="weekday-label" for="weekday-6">Sat</label></div>
+											<div class="weekday-item"><input type="checkbox" value="0" id="weekday-0"><label class="weekday-label" for="weekday-0">Sun</label></div>
+										</div>
+									</div>
+								</div>
+								<p class="hint">For recurring events only the <strong>time</strong> part of Start/End is used.</p>
+							</div>
+						</div>
+
+						<!-- Tab 4: Behavior -->
+						<div id="behavior-tab" class="tab-pane">
+							<div class="grid-2">
+								<div class="form-group">
+									<label for="task-preload">Preload seconds</label>
+									<input id="task-preload" type="number" min="0" step="1" value="0" placeholder="0">
+								</div>
+								<div class="form-group">
+									<label for="task-onend">On end action</label>
+									<select id="task-onend">
+										<option value="hide">hide</option>
+										<option value="none">none</option>
+										<option value="stop">stop</option>
+									</select>
+								</div>
+							</div>
+						</div>
+
+						<!-- Tab 5: Preview -->
+						<div id="preview-tab" class="tab-pane">
+							<div class="preview-container">
+								<div class="preview-video-wrapper">
+									<video id="modal-preview-video" controls></video>
+									<button id="modal-preview-btn" class="btn-preview" type="button">▶ Preview Source</button>
+									<div id="modal-preview-loading" class="preview-loading-container" style="display: none;">
+										<div class="preview-spinner"></div>
+										<div id="modal-preview-loading-text" class="preview-loading-text">Loading preview...</div>
+									</div>
+								</div>
+								<div class="preview-info">
+									<div class="info-row">
+										<span class="label">Source:</span>
+										<span id="preview-source-uri" class="value">-</span>
+									</div>
+									<div class="info-row">
+										<span class="label">Input Kind:</span>
+										<span id="preview-input-kind" class="value">-</span>
+									</div>
+								</div>
+								<button id="modal-stop-preview-btn" class="btn btn-secondary" type="button" style="display: none;">⏹ Stop Preview</button>
+							</div>
+						</div>
+					</div>
+				</div>
+
+				<!-- Actions Footer -->
+				<footer class="actions">
+					<button id="delete-task" type="button" class="btn btn-danger">Delete</button>
+					<div class="action-buttons">
+						<button id="cancel-task" type="button" class="btn btn-secondary">Cancel</button>
+						<button id="save-task" type="submit" class="btn btn-primary">Save Changes</button>
+					</div>
+				</footer>
+			</form>
+		</div>
+	</div>
+
+	<!-- Monitor Preview Popup -->
+	<div id="monitor-preview-overlay" class="monitor-popup-overlay" style="display: none;">
+		<div id="monitor-preview-popup" class="monitor-popup">
+			<div class="popup-header">
+				<h3 id="popup-title">Event Preview</h3>
+				<button class="popup-close" id="popup-close-x" aria-label="Close">✕</button>
+			</div>
+
+			<div class="popup-content">
+				<!-- Video Preview Area -->
+				<div class="preview-video-container">
+					<video id="popup-video" controls></video>
+					<button id="popup-play-preview" class="btn-preview">▶ Preview Source</button>
+					<div id="popup-preview-status" class="preview-status">Click to load preview</div>
+				</div>
+
+				<!-- Event Info (Read-only, Minimal) -->
+				<div class="event-info">
+					<div class="info-row">
+						<span class="label">Source:</span>
+						<span id="popup-source-uri" class="value">-</span>
+					</div>
+					<div class="info-row">
+						<span class="label">Input Kind:</span>
+						<span id="popup-input-kind" class="value">-</span>
+					</div>
+					<div class="info-row">
+						<span class="label">Schedule:</span>
+						<span id="popup-schedule" class="value">-</span>
+					</div>
+				</div>
+			</div>
+
+			<div class="popup-footer">
+				<button class="btn btn-secondary" id="goto-editor">Edit in Editor View</button>
+				<button class="btn btn-secondary" id="popup-close-btn">Close</button>
+			</div>
+		</div>
+	</div>
+
+	<!-- HLS.js for preview playback -->
+	<script src="vendor/hls.js-1.5.15/hls.min.js"></script>
+
+	<!-- Application Entry Point -->
+	<script type="module" src="main.mjs"></script>
+</body>
+</html>

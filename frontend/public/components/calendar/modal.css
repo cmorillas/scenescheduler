@@ -1,0 +1,531 @@
+/* =========================================================
+   File: modal.css
+   ========================================================= */
+/* File: components/calendar/modal.css */
+
+/* ========== Modal shell ========== */
+#task-modal {
+  /* Variables CSS con ámbito local para el modal */
+  --bg-panel: #1e293b;
+  --surface: #334155;
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --secondary: #64748b;
+  --danger: #ef4444;
+  --success: #22c55e;
+  --border: #475569;
+  --text-primary: #f8fafc;
+  --text-muted: #94a3b8;
+  --radius: 0.375rem;
+  --shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  --input-height: 2.25rem;
+  --font-size: 0.75rem;
+  --label-size: 0.75rem;
+
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,.4);
+  backdrop-filter: blur(2px);
+  z-index: 1000;
+  font-family: var(--font-family);
+}
+.modal-content {
+  position: absolute;
+  top: 6vh; left: 50%;
+  transform: translateX(-50%);
+  width: 96%; max-width: 680px;
+  max-height: 85vh;
+  background: var(--bg-panel);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+/* ========== Header ========== */
+.modal-header {
+  background: var(--surface);
+  color: var(--text-primary);
+  padding: .6rem 1rem;
+  display: flex; align-items: center; justify-content: space-between;
+  cursor: grab; user-select: none;
+  border-bottom: 1px solid var(--border);
+}
+.modal-header-left {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+}
+.modal-header h3 { margin: 0; font-size: 1rem; font-weight: 600; }
+.icon-btn { background: transparent; border: 0; color: var(--text-muted); font-size: 1.4rem; line-height: 1; cursor: pointer; opacity: .85; }
+.icon-btn:hover { opacity: 1; color: var(--text-primary); }
+
+/* ========== Form scroll area ========== */
+#task-form {
+  padding: 1.2rem 1.5rem;
+  display: flex; flex-direction: column; gap: 1rem;
+  overflow-y: auto; flex: 1;
+}
+
+/* Reduce spacing between title and tabs */
+#task-form > .form-group:first-child {
+  margin-bottom: -0.5rem;
+}
+
+/* Generic controls */
+#task-modal .form-group { display: flex; flex-direction: column; gap: .35rem; }
+#task-modal .form-row { display: flex; gap: .8rem; }
+#task-modal .form-row > .form-group { flex: 1; }
+#task-modal label { font-size: var(--label-size); font-weight: 600; color: var(--text-primary); }
+#task-modal input,
+#task-modal select,
+#task-modal textarea {
+  width: 100%; box-sizing: border-box;
+  height: var(--input-height);
+  padding: 0 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--surface) !important;
+  font-size: var(--font-size);
+  color: var(--text-primary) !important;
+  font-family: inherit;
+}
+#task-modal input:focus,
+#task-modal select:focus,
+#task-modal textarea:focus {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+    border-color: var(--primary);
+}
+#task-modal textarea {
+    height: 42px;
+    padding-top: 0.5rem;
+    padding-bottom: 0.5rem;
+    resize: vertical;
+}
+
+/* Switch */
+.switch { position: relative; display: inline-flex; align-items: center; gap: .4rem; margin-bottom:0;}
+.switch input { display: none; }
+.slider { width: 34px; height: 18px; border-radius: 18px; background: #475569; position: relative; display: inline-block; transition: .2s; cursor: pointer; }
+.slider:before { content:""; position:absolute; left:2px; top:2px; width:14px; height:14px; border-radius:50%; background:#fff; transition: .2s; }
+.switch input:checked + .slider { background: var(--success); }
+.switch input:checked + .slider:before { transform: translateX(16px); }
+.switch-label {
+    color: var(--text-muted);
+    font-size: .8rem;
+    font-weight: 500;
+    line-height: 1;
+}
+
+/* ========== Tabs ========== */
+.tab-nav {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: .8rem;
+}
+.tab-btn {
+  padding: .6rem 1rem;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  font-size: var(--label-size);
+  font-weight: 600;
+  color: var(--text-muted);
+  border-bottom: 2px solid transparent;
+  margin-bottom: -1px;
+  transition: color 0.2s ease, border-color 0.2s ease;
+  font-family: inherit;
+}
+.tab-btn:hover {
+  color: var(--text-primary);
+}
+.tab-btn.active {
+  color: var(--primary);
+  border-bottom-color: var(--primary);
+}
+/* Tab Content */
+.tab-content {
+  padding-top: .4rem;
+  min-height: 250px;
+}
+.tab-pane {
+  display: none;
+  animation: fadeIn 0.3s ease;
+}
+.tab-pane.active {
+  display: block;
+}
+/* Rule for spacing between form groups inside any tab */
+.tab-pane > .form-group + .form-group,
+.tab-pane > .form-group + .color-section,
+.tab-pane > .grid-2 + .form-group {
+    margin-top: 0.9rem;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Preview Section (in Tab) */
+#modal-preview-video {
+  width: 100%;
+  max-width: 450px;
+  display: block;
+  margin: 0 auto;
+  background-color: black;
+  border-radius: var(--radius);
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+  border: 1px solid var(--border);
+}
+
+/* Timing, Source, Grids, etc. */
+.timing-container { display: flex; flex-direction: column; gap: .8rem; }
+.timing-row { display: flex; gap: .8rem; align-items: flex-end; justify-content: space-between; }
+.timing-inputs { display: flex; gap: .8rem; }
+.timing-inputs input { max-width: 180px; }
+#task-duration { max-width: 100px; }
+
+.tab-container { display: flex; flex-direction: column; gap: 1.1rem; }
+.source-row { display: grid; grid-template-columns: 1fr 2fr; gap: .8rem; }
+.grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: .8rem; }
+
+.recurring-section { margin-top: 1rem; padding-top: 1rem; border-top: 1px solid var(--border); }
+.section-label {
+    font-weight: 600;
+    font-size: 0.9rem;
+    color: var(--text-primary);
+    cursor: pointer;
+}
+.recurring-header { display: flex; align-items: center; gap: .6rem; }
+.recurring-container {
+  margin-top: .5rem; display: none; align-items: flex-start; gap: .8rem; flex-wrap: wrap;
+  justify-content: space-between;
+}
+.recurring-container.show { display: flex; }
+.recurring-date-fields { display: flex; gap: .8rem; }
+.recurring-date-field { display: flex; flex-direction: column; gap: .25rem; }
+.weekdays { display: flex; gap: .45rem; }
+.weekday-item { position:relative; width:2.5rem; height:2rem; }
+.weekday-item input { position:absolute; inset:0; opacity:0; cursor:pointer; }
+.weekday-label {
+  display:flex; align-items:center; justify-content:center;
+  width:100%; height:100%; border:1px solid var(--border); border-radius:var(--radius);
+  font-size: var(--label-size); font-weight: 500; background: var(--surface); color:var(--text-primary);
+}
+.weekday-item:hover .weekday-label { background: #475569; }
+.weekday-item input:checked + .weekday-label { background: var(--primary); color:#fff; border-color: var(--primary); }
+.hint { margin:.25rem 0 0; color: var(--text-muted); font-size: .75rem; }
+.subhint { color: var(--text-muted); font-size: .75rem; }
+
+/* Color Section */
+.color-section {
+    margin-top: 1rem;
+    border-top: 1px solid var(--border);
+    padding-top: 1rem;
+}
+.color-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1.5rem;
+    align-items: flex-start;
+}
+.color-grid .form-group {
+    display: flex;
+    flex-direction: column;
+    gap: 0.35rem;
+    min-width: 60px;
+}
+#task-modal .custom-color-input {
+    position: relative;
+}
+#task-modal .custom-color-input input[type="color"] {
+    width: 60px !important;
+    min-width: 60px;
+    max-width: 60px;
+    height: var(--input-height) !important;
+    padding: 4px !important;
+    border-radius: var(--radius);
+    cursor: pointer;
+    transition: filter 0.2s;
+}
+.clear-color-btn {
+    position: absolute;
+    top: 50%;
+    right: 5px;
+    transform: translateY(-50%);
+    width: 16px;
+    height: 16px;
+    background: rgba(0,0,0,0.4);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    font-size: 12px;
+    opacity: 0;
+    transition: opacity 0.2s;
+    padding: 0;
+}
+.custom-color-input:hover .clear-color-btn {
+    opacity: 1;
+}
+.custom-color-input[data-cleared="true"] input[type="color"] {
+    background-image: linear-gradient(45deg, #475569 25%, transparent 25%), linear-gradient(-45deg, #475569 25%, transparent 25%), linear-gradient(45deg, transparent 75%, #475569 75%), linear-gradient(-45deg, transparent 75%, #475569 75%);
+    background-size: 10px 10px;
+    background-position: 0 0, 0 5px, 5px -5px, -5px 0px;
+}
+.custom-color-input[data-cleared="true"] input[type="color"]::-webkit-color-swatch {
+    opacity: 0;
+}
+.custom-color-input[data-cleared="true"] .clear-color-btn {
+    display: none;
+}
+
+/* Styles for the subtle hint icon and tooltip */
+.label-with-hint {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+}
+
+.recurring-hint-wrapper {
+    position: relative; /* For tooltip positioning */
+    align-items: center;
+}
+
+.recurring-hint-icon {    
+    color: var(--text-muted);
+    cursor: help;    
+    width: 14px;
+    height: 14px;    
+    line-height: 0;
+    user-select: none;
+    position: absolute;    
+}
+
+.hint-tooltip {
+    visibility: hidden;
+    width: 140px;
+    background-color: var(--surface);
+    color: var(--text-primary);
+    text-align: center;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    padding: 5px 8px;
+    position: absolute;
+    z-index: 1;
+    bottom: 150%; /* Position above the icon */
+    left: 50%;
+    margin-left: -70px; /* Center the tooltip */
+    opacity: 0;
+    transition: opacity 0.3s;
+    font-size: 0.75rem;
+    font-style: normal;
+    pointer-events: none;
+}
+
+.recurring-hint-wrapper:hover .hint-tooltip {
+    visibility: visible;
+    opacity: 1;
+}
+
+
+/* Footer */
+.actions {
+  display: flex; justify-content: space-between; align-items: center;
+  gap: .6rem; padding-top: .8rem; margin-top: auto;
+  border-top: 1px solid var(--border);
+}
+.action-buttons { display: flex; gap: .5rem; }
+.btn {
+  height: calc(var(--input-height) * 1.1);
+  padding: 0 1rem; border: 0; border-radius: var(--radius);
+  font-size: calc(var(--font-size) * 1.05); font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.2s;
+}
+.btn-primary { background: var(--primary); color:#fff; }
+.btn-primary:hover { background: var(--primary-hover); }
+.btn-secondary { background: var(--secondary); color:var(--text-primary); }
+.btn-secondary:hover { background: #475569; }
+.btn-danger { background: var(--danger); color:#fff; }
+.btn-danger:hover { background: #dc2626; }
+
+/* Preview button - base styling */
+.btn-preview {
+  background: var(--primary);
+  color: #fff;
+  min-width: 200px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.btn-preview:hover:not(:disabled) {
+  background: var(--primary-hover);
+}
+
+/* Preview button - info state (auto-stopped, notifications) */
+.btn-preview.info-state {
+  background: #0ea5e9; /* sky-500 */
+  color: #fff;
+  cursor: default;
+  font-size: 0.95rem;
+  padding: 0 1.5rem;
+}
+
+/* Preview button - warning state (errors, issues) */
+.btn-preview.warning-state {
+  background: #f59e0b; /* amber-500 */
+  color: #fff;
+  cursor: default;
+  font-size: 0.95rem;
+  padding: 0 1.5rem;
+}
+
+/* ================================
+   PREVIEW TAB
+   ================================ */
+.preview-container {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.preview-video-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: center;
+}
+
+.preview-info {
+  background-color: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 0.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.preview-info .info-row {
+  display: flex;
+  gap: 0.5rem;
+  font-size: var(--font-size);
+}
+
+.preview-info .label {
+  font-weight: 600;
+  color: var(--text-primary);
+  min-width: 80px;
+}
+
+.preview-info .value {
+  color: var(--text-primary);
+  word-break: break-all;
+}
+
+#modal-stop-preview-btn {
+  align-self: center;
+  margin-top: 0.5rem;
+}
+
+/* ========== Read-Only Mode ========== */
+#task-modal.modal-readonly input:disabled,
+#task-modal.modal-readonly select:disabled,
+#task-modal.modal-readonly textarea:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+#task-modal.modal-readonly .color-picker button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Hide clear color button in readonly mode */
+#task-modal.modal-readonly .clear-color-btn {
+  display: none;
+}
+
+/* Disabled switch/toggle in readonly mode */
+#task-modal.modal-readonly .switch {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+#task-modal.modal-readonly .switch input:disabled + .slider {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+#task-modal.modal-readonly .switch-label {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Disabled weekday checkboxes - don't show native checkmark */
+#task-modal.modal-readonly .weekday-item input:disabled {
+  display: none;
+}
+
+#task-modal.modal-readonly .weekday-item .weekday-label {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Disable hover effect on weekday items in readonly mode */
+#task-modal.modal-readonly .weekday-item:hover .weekday-label {
+  background: var(--surface) !important;
+}
+
+/* Keep checked weekdays with blue background even on hover */
+#task-modal.modal-readonly .weekday-item input:checked + .weekday-label {
+  background: var(--primary) !important;
+}
+
+#task-modal.modal-readonly .weekday-item:hover input:checked + .weekday-label {
+  background: var(--primary) !important;
+}
+
+/* Footer alignment in readonly mode */
+#task-modal.modal-readonly .actions {
+  justify-content: flex-end;
+}
+
+/* ========== Preview Loading Spinner ========== */
+.preview-loading-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1rem;
+  padding: 2rem;
+}
+
+.preview-spinner {
+  width: 40px;
+  height: 40px;
+  border: 4px solid var(--border);
+  border-top-color: var(--primary);
+  border-radius: 50%;
+  animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.preview-loading-text {
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  text-align: center;
+  line-height: 1.5;
+}
+

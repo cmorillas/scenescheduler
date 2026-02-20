@@ -1,0 +1,258 @@
+/* File: components/calendar/calendar.css */
+
+#calendar-container {
+	display: flex;
+	flex-direction: column;
+	height: 100%;
+}
+
+/* ================================
+   STATUS BAR
+   ================================ */
+#status-bar {
+    display: flex;
+    align-items: center;
+    padding: 10px 12px;
+    font-size: 0.8em;
+    font-weight: 500;
+    border-top: 1px solid var(--border);
+    transition: all 0.3s ease;
+    overflow: hidden;
+    gap: 8px;
+}
+
+#status-circle {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: var(--secondary); /* Default color */
+    flex-shrink: 0;
+    display: inline-block;
+    flex: 0 0 auto;
+    transition: background-color 0.3s ease;
+}
+
+#status-text {
+    flex-grow: 1;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+}
+
+/* --- State Styles --- */
+#status-bar.hidden {
+    height: 0;
+    padding-top: 0;
+    padding-bottom: 0;
+    opacity: 0;
+    border: none;
+}
+
+#status-bar.clean {
+    background-color: var(--surface);
+    color: var(--text-muted);
+}
+#status-bar.clean #status-circle {
+    background-color: var(--success); /* Green = Saved */
+}
+
+#status-bar.dirty {
+    background-color: #fffbeb; /* Using a specific shade for warning */
+    color: #b45309;
+}
+#status-bar.dirty #status-circle {
+    background-color: #f59e0b; /* Orange = Modified */
+}
+
+#status-bar.syncing {
+    background-color: #dbeafe; /* Lighter blue */
+    color: var(--primary-hover);
+}
+#status-bar.syncing #status-circle {
+    background-color: var(--primary); /* Blue = Syncing */
+}
+
+#status-bar.error {
+    background-color: #fee2e2; /* Lighter red */
+    color: var(--danger);
+}
+#status-bar.error #status-circle {
+    background-color: var(--danger); /* Red = Error */
+}
+
+/* ================================
+   FULLCALENDAR OVERRIDES
+   ================================ */
+
+#calendar-instance { height: 100%; }
+
+.fc-timegrid-slot-label { font-size: 0.75em; }
+.fc-toolbar-title { font-size: 0.75em; }
+
+/* -- General Event Styling -- */
+.fc-event-time {
+    font-size: 0.875em !important;
+    font-weight: 400;
+    margin: 3px 0 3px 0;
+}
+.fc-event-title {
+    font-weight: 600 !important;
+}
+.fc-timegrid-event .fc-event-main {
+    padding-left: 5px;
+}
+
+/* -- Custom Buttons -- */
+/* Styles for zoom buttons are removed to inherit FullCalendar's default .fc-button style */
+
+.fc-zoomIn-button, .fc-zoomOut-button {
+	width: 2rem;
+	margin-right: 3px !important;
+	font-size: 1.5rem !important;
+    padding: 0 !important;
+}
+
+.fc-menu-button {
+	background-color: var(--primary-hover) !important;
+	border-color: var(--primary) !important;
+	color: #fff !important;
+	min-width: 40px !important;
+	font-size: 1.2rem;
+    padding-bottom: 4px;
+}
+
+/* ================================
+   CUSTOM MENU
+   ================================ */
+.calendar-menu {
+	position: absolute;
+	z-index: 1000;
+	background: var(--bg-panel);
+	border: 1px solid var(--border);
+	border-radius: var(--radius);
+	box-shadow: var(--shadow);
+	width: 160px;
+}
+
+.calendar-menu.hidden { display: none; }
+
+.menu-section { padding: 4px 0; }
+
+.menu-separator {
+	height: 1px;
+	background-color: var(--border);
+	margin: 4px 0;
+}
+
+.menu-item {
+	padding: 8px 12px;
+	font-size: .875rem;
+	cursor: pointer;
+	color: var(--text-primary);
+	display: flex;
+	align-items: center;
+	gap: 8px;
+    transition: background-color 0.2s;
+}
+
+.menu-item:hover { 
+	background: var(--surface); 
+}
+
+.menu-item:active {
+	background: var(--border);
+}
+
+/* ================================
+   EVENT STATES
+   ================================ */
+
+/* Current program highlighting (Monitor view) */
+.fc-event.current-program,
+.fc-event-main-frame.is-current {
+    background-color: rgba(59, 130, 246, 0.2) !important;
+    border-left: 4px solid var(--primary) !important;
+    font-weight: 600 !important;
+}
+
+.fc-event.current-program .fc-event-title,
+.fc-event-main-frame.is-current .fc-event-title {
+    color: var(--primary) !important;
+}
+
+/* Disabled events (Editor view) */
+.fc-event-main-frame.disabled {
+    opacity: 0.5;
+    filter: grayscale(50%);
+}
+
+.fc-event-main-frame.disabled .fc-event-title {
+    text-decoration: line-through;
+}
+
+/* Recurring event indicator */
+.fc-event.recurring-event .fc-event-time {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: 100%;
+}
+
+.fc-event.recurring-event .fc-event-time::after {
+    content: "🔄";
+    font-size: 0.75em;
+    margin-right: 4px;
+    margin-right: 4px;
+    flex-shrink: 0;
+}
+
+/* ================================
+   CALENDAR CONTAINERS
+   ================================ */
+
+/* Calendar panels need to fill their parent */
+.calendar-panel {
+    flex: 1 !important;
+    min-height: 0 !important;
+    width: 100% !important;
+    display: flex !important;
+    flex-direction: column !important;
+    padding: 0 !important; /* Remove default panel padding */
+}
+
+/* The h2 heading inside calendar panels */
+.calendar-panel h2 {
+    padding: 0 1rem; /* Add padding back for heading only */
+}
+
+/* Ensure calendars fill their containers */
+#monitor-calendar,
+#editor-calendar {
+    flex: 1;
+    min-height: 0;
+    height: 100%;
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Monitor calendar styling */
+#monitor-calendar .fc {
+    height: 100%;
+    flex: 1;
+}
+
+#monitor-calendar .fc .fc-view-harness {
+    height: 100% !important;
+}
+
+/* Editor calendar styling */
+#editor-calendar .fc {
+    height: 100%;
+    flex: 1;
+}
+
+#editor-calendar .fc .fc-view-harness {
+    height: 100% !important;
+}
+

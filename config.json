@@ -1,0 +1,38 @@
+{
+  "scheduler": {
+    "defaultSource": {
+      "name": "DefaultBackupSource",
+      "inputKind": "image_source",
+      "uri": "/path/to/your_backup_image.png",
+      "inputSettings": {}
+    }
+  },
+  "mediaSource": {
+    "audioDeviceIdentifier": "nx_voice_out.monitor",
+    "videoDeviceIdentifier": "video0;video0",
+    "quality": "medium"
+  },
+  "webServer": {
+    "port": "8080",
+    "user": "admin",
+    "password": "YOUR_WEBSERVER_PASSWORD",
+    "HlsPath": "hls",
+    "enableTls": false,
+    "certFilePath": "",
+    "keyFilePath": ""
+    
+  },  
+  "obs": {
+    "host": "localhost",
+    "port": 4455,
+    "password": "YOUR_OBS_WEBSOCKET_PASSWORD",
+    "reconnectInterval": 10,
+    "scheduleScene": "_SCHEDULER",
+    "scheduleSceneAux": "_SCHEDULER_AUX",
+    "sourceNamePrefix": "_SCH_"
+  },
+  "paths": {    
+    "logFile": "logs.txt",
+    "schedule": "schedule.json"
+  }
+}

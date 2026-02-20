@@ -1,0 +1,6 @@
+[Details]
+  Icon = "assets/icons/icon.png"
+  Name = "OBS Scheduler2"
+  ID = "com.telytec.obscheduler"
+  Version = "1.0.0"
+  Build = 2
