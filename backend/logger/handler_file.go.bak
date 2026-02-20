@@ -1,0 +1,125 @@
+// backend/logger/handler_file.go
+package logger
+
+import (
+	"context"
+	"fmt"
+	"io"
+	"log/slog"
+	"sync"
+)
+
+// FileLogHandler implements slog.Handler and writes formatted logs to an io.Writer.
+// It properly handles WithAttrs and WithGroup for contextual logging.
+type FileLogHandler struct {
+	logLevel slog.Level
+	writer   io.Writer
+	mu       sync.Mutex // Protects concurrent writes to the writer
+	
+	// Fields for accumulated attributes and groups
+	attrs  []slog.Attr
+	groups []string
+}
+
+// NewFileLogHandler creates a handler that logs formatted messages to a specified writer.
+func NewFileLogHandler(level slog.Level, writer io.Writer) *FileLogHandler {
+	if writer == nil {
+		writer = io.Discard
+	}
+	return &FileLogHandler{
+		logLevel: level,
+		writer:   writer,
+		attrs:    make([]slog.Attr, 0),
+		groups:   make([]string, 0),
+	}
+}
+
+// Enabled checks if the handler should process records of the given level.
+func (h *FileLogHandler) Enabled(_ context.Context, level slog.Level) bool {
+	return level >= h.logLevel
+}
+
+// Handle processes the log record and writes it to the configured writer.
+// It uses a mutex to ensure safe concurrent access to the writer.
+func (h *FileLogHandler) Handle(_ context.Context, rec slog.Record) error {
+	logLine := h.formatFileLogRecord(rec)
+
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	_, err := fmt.Fprintln(h.writer, logLine)
+	return err
+}
+
+// formatFileLogRecord formats an slog.Record with accumulated attributes and groups.
+func (h *FileLogHandler) formatFileLogRecord(rec slog.Record) string {
+	timestamp := rec.Time.Format("2006-01-02 15:04:05.000")
+	logLine := fmt.Sprintf("%s [%s] %s",
+		timestamp,
+		rec.Level,
+		rec.Message,
+	)
+
+	// 1. First add accumulated attributes from WithAttrs (context)
+	for _, attr := range h.attrs {
+		logLine += h.formatAttr(attr)
+	}
+
+	// 2. Then add attributes from the current record
+	rec.Attrs(func(attr slog.Attr) bool {
+		logLine += h.formatAttr(attr)
+		return true
+	})
+
+	return logLine
+}
+
+// formatAttr formats an attribute considering active groups.
+func (h *FileLogHandler) formatAttr(attr slog.Attr) string {
+	key := attr.Key
+	
+	// Apply group prefixes
+	for _, group := range h.groups {
+		key = group + "." + key
+	}
+	
+	return fmt.Sprintf(" %s=%v", key, attr.Value.Any())
+}
+
+// WithAttrs returns a new handler with the given attributes added.
+// No mutex needed here as handlers are conceptually immutable.
+func (h *FileLogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	if len(attrs) == 0 {
+		return h
+	}
+	
+	// Create new handler with accumulated attributes
+	newAttrs := make([]slog.Attr, len(h.attrs)+len(attrs))
+	copy(newAttrs, h.attrs)
+	copy(newAttrs[len(h.attrs):], attrs)
+	
+	return &FileLogHandler{
+		logLevel: h.logLevel,
+		writer:   h.writer,
+		attrs:    newAttrs,
+		groups:   append([]string{}, h.groups...), // Copy groups
+	}
+}
+
+// WithGroup returns a new handler with the given group added.
+// No mutex needed here as handlers are conceptually immutable.
+func (h *FileLogHandler) WithGroup(name string) slog.Handler {
+	if name == "" {
+		return h
+	}
+	
+	// Create new handler with group added
+	newGroups := append([]string{}, h.groups...)
+	newGroups = append(newGroups, name)
+	
+	return &FileLogHandler{
+		logLevel: h.logLevel,
+		writer:   h.writer,
+		attrs:    append([]slog.Attr{}, h.attrs...), // Copy attributes
+		groups:   newGroups,
+	}
+}

@@ -1,0 +1,335 @@
+// backend/obsclient/internal/switcher/methods.go
+package switcher
+
+import (
+	"encoding/json"
+	"fmt"
+	"net/url"
+	"slices"
+	"strings"
+
+	"github.com/andreykaipov/goobs"
+	"github.com/andreykaipov/goobs/api/requests/inputs"
+	"github.com/andreykaipov/goobs/api/requests/sceneitems"
+	"github.com/andreykaipov/goobs/api/typedefs"
+	"scenescheduler/backend/eventbus"
+)
+
+// This file contains the private implementation details and helper methods for
+// the Switcher component. These methods are unexported and support the main
+// PerformSwitch public method.
+//
+// Order of sections:
+// 1) Input and Scene Item Creation
+// 2) Scene Item Manipulation (Transform, Duplicate, Visibility)
+// 3) Cleanup and Removal
+
+// ============================================================================
+// INPUT AND SCENE ITEM CREATION
+// ============================================================================
+
+// createOBSInput prepares a new source and its scene item in the temporary scene.
+func (s *Switcher) createOBSInput(client *goobs.Client, program *eventbus.ProgramData) (int, error) {
+	tmpScene := s.config.ScheduleSceneTmp
+	prefixedName := s.config.SourceNamePrefix + program.SourceName
+
+	// Validate that the input kind is supported by this instance of OBS.
+	listResp, err := client.Inputs.GetInputKindList()
+	if err != nil {
+		return 0, fmt.Errorf("could not fetch supported input kinds: %w", err)
+	}
+	
+	if !slices.Contains(listResp.InputKinds, program.InputKind) {
+		s.logger.Error("Input kind not supported by OBS", 
+			"requested", program.InputKind,
+			"supported", listResp.InputKinds)
+		return 0, fmt.Errorf("input kind %q is not supported by OBS", program.InputKind)
+	}
+
+	// Create the input and its scene item in the temporary "staging" scene, initially hidden.
+	respCreate, err := s.createInputInScene(client, tmpScene, prefixedName, program, false)
+	if err != nil {
+		return 0, fmt.Errorf("failed to create input in temp scene: %w", err)
+	}
+
+	s.logger.Info("Successfully created scene item in temp scene", 
+		"sceneItemId", respCreate.SceneItemId, 
+		"scene", tmpScene)
+	return respCreate.SceneItemId, nil
+}
+
+// createInputInScene is a helper that handles the raw creation of the input and its scene item.
+func (s *Switcher) createInputInScene(client *goobs.Client, sceneName, inputName string, program *eventbus.ProgramData, enabled bool) (*inputs.CreateInputResponse, error) {
+	respDefaults, err := client.Inputs.GetInputDefaultSettings(&inputs.GetInputDefaultSettingsParams{
+		InputKind: &program.InputKind,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("could not get default settings for kind '%s': %w", program.InputKind, err)
+	}
+	baseSettings := respDefaults.DefaultInputSettings
+
+	parsedURL, err := url.Parse(program.URI)
+	isURL := err == nil && parsedURL.Scheme != "" && parsedURL.Host != ""
+
+	switch program.InputKind {
+	case "ffmpeg_source":
+		if isURL {
+			baseSettings["input"] = program.URI
+			baseSettings["is_local_file"] = false
+		} else {
+			baseSettings["local_file"] = program.URI
+			baseSettings["is_local_file"] = true
+		}
+	case "vlc_source":
+		baseSettings["playlist"] = []map[string]interface{}{{"value": program.URI}}
+	case "browser_source":
+		baseSettings["url"] = program.URI
+	}
+
+	finalSettings := s.mergeSettings(baseSettings, program.InputSettings)
+	params := &inputs.CreateInputParams{
+		SceneName:        &sceneName,
+		InputName:        &inputName,
+		InputKind:        &program.InputKind,
+		InputSettings:    finalSettings,
+		SceneItemEnabled: &[]bool{false}[0], // Always create hidden
+	}
+
+	s.logger.Info("Attempting to create OBS input", "inputName", inputName, "scene", sceneName)
+	return client.Inputs.CreateInput(params)
+}
+
+// mergeSettings merges custom settings from the user over a base settings map.
+func (s *Switcher) mergeSettings(base map[string]interface{}, custom interface{}) map[string]interface{} {
+	if custom == nil {
+		return base
+	}
+	customMap, ok := custom.(map[string]interface{})
+	if !ok {
+		s.logger.Warn("Could not merge settings: program.InputSettings is not a valid map", "settings", custom)
+		return base
+	}
+
+	for key, value := range customMap {
+		base[key] = value
+	}
+	return base
+}
+
+// ============================================================================
+// SCENE ITEM MANIPULATION
+// ============================================================================
+
+// applyTransformsToSceneItem applies the default and user-defined transforms.
+func (s *Switcher) applyTransformsToSceneItem(client *goobs.Client, sceneName string, sceneItemID int, userTransformData interface{}) error {
+	if err := s.applyDefaultTransform(client, sceneName, sceneItemID); err != nil {
+		s.logger.Warn("Failed to apply default transform to scene item.", "error", err)
+	}
+	finalTransform, err := s.mergeUserTransform(client, sceneName, sceneItemID, userTransformData)
+	if err != nil {
+		return fmt.Errorf("could not merge user transform for item %d: %w", sceneItemID, err)
+	}
+	_, err = client.SceneItems.SetSceneItemTransform(&sceneitems.SetSceneItemTransformParams{
+		SceneName:          &sceneName,
+		SceneItemId:        &sceneItemID,
+		SceneItemTransform: finalTransform,
+	})
+	return err
+}
+
+// applyDefaultTransform sets a scene item's transform to stretch to the canvas bounds.
+func (s *Switcher) applyDefaultTransform(client *goobs.Client, sceneName string, sceneItemID int) error {
+	videoSettings, err := client.Config.GetVideoSettings()
+	if err != nil {
+		return fmt.Errorf("could not get canvas video settings: %w", err)
+	}
+	transform := &typedefs.SceneItemTransform{
+		BoundsType:   "OBS_BOUNDS_STRETCH",
+		Alignment:    5, // Top-Left
+		PositionX:    0,
+		PositionY:    0,
+		BoundsWidth:  float64(videoSettings.BaseWidth),
+		BoundsHeight: float64(videoSettings.BaseHeight),
+	}
+	_, err = client.SceneItems.SetSceneItemTransform(&sceneitems.SetSceneItemTransformParams{
+		SceneName:          &sceneName,
+		SceneItemId:        &sceneItemID,
+		SceneItemTransform: transform,
+	})
+	return err
+}
+
+// mergeUserTransform merges a user-defined transform object over the current item's transform.
+func (s *Switcher) mergeUserTransform(client *goobs.Client, sceneName string, sceneItemID int, userTransformData interface{}) (*typedefs.SceneItemTransform, error) {
+	resp, err := client.SceneItems.GetSceneItemTransform(&sceneitems.GetSceneItemTransformParams{
+		SceneName:   &sceneName,
+		SceneItemId: &sceneItemID,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("could not get current transform to merge: %w", err)
+	}
+	finalTransform := resp.SceneItemTransform
+	if userTransformData == nil {
+		return finalTransform, nil
+	}
+	jsonBytes, err := json.Marshal(userTransformData)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal user transform data: %w", err)
+	}
+	if err := json.Unmarshal(jsonBytes, finalTransform); err != nil {
+		return nil, fmt.Errorf("failed to unmarshal user transform over base: %w", err)
+	}
+	return finalTransform, nil
+}
+
+// duplicateSceneItem copies a scene item from a source to a destination scene.
+func (s *Switcher) duplicateSceneItem(client *goobs.Client, fromScene, toScene string, sceneItemID int) (int, error) {
+	s.logger.Info("Duplicating scene item", "from", fromScene, "to", toScene, "id", sceneItemID)
+	resp, err := client.SceneItems.DuplicateSceneItem(&sceneitems.DuplicateSceneItemParams{
+		SceneName:            &fromScene,
+		DestinationSceneName: &toScene,
+		SceneItemId:          &sceneItemID,
+	})
+	if err != nil {
+		return 0, fmt.Errorf("API call to duplicate scene item %d failed: %w", sceneItemID, err)
+	}
+	return resp.SceneItemId, nil
+}
+
+// setSceneItemEnabled changes the visibility of a scene item.
+func (s *Switcher) setSceneItemEnabled(client *goobs.Client, sceneName string, sceneItemID int, enabled bool) error {
+	s.logger.Info("Setting scene item visibility", "scene", sceneName, "id", sceneItemID, "enabled", enabled)
+	_, err := client.SceneItems.SetSceneItemEnabled(&sceneitems.SetSceneItemEnabledParams{
+		SceneName:        &sceneName,
+		SceneItemId:      &sceneItemID,
+		SceneItemEnabled: &enabled,
+	})
+	return err
+}
+
+// ============================================================================
+// CLEANUP AND REMOVAL
+// ============================================================================
+
+// cleanupSpecificProgram removes a known program from the scene.
+// This is used to clean up the previous program after a successful switch.
+func (s *Switcher) cleanupSpecificProgram(client *goobs.Client, sceneName string, program *eventbus.ProgramData) error {
+	prefixedName := s.config.SourceNamePrefix + program.SourceName
+	
+	s.logger.Debug("Cleaning up specific program", "name", prefixedName, "scene", sceneName)
+	
+	// Try to get the scene item ID
+	idResp, err := client.SceneItems.GetSceneItemId(&sceneitems.GetSceneItemIdParams{
+		SceneName:  &sceneName,
+		SourceName: &prefixedName,
+	})
+	
+	// If item exists, hide it first then remove
+	if err == nil {
+		// CLEANUP: Hide is best-effort
+		_, _ = client.SceneItems.SetSceneItemEnabled(&sceneitems.SetSceneItemEnabledParams{
+			SceneName:        &sceneName,
+			SceneItemId:      &idResp.SceneItemId,
+			SceneItemEnabled: &[]bool{false}[0],
+		})
+		
+		// CLEANUP: Remove is best-effort
+		_, _ = client.SceneItems.RemoveSceneItem(&sceneitems.RemoveSceneItemParams{
+			SceneName:   &sceneName,
+			SceneItemId: &idResp.SceneItemId,
+		})
+	} else {
+		s.logger.Debug("Scene item not found (may have been removed already)", 
+			"name", prefixedName,
+			"error", err)
+	}
+	
+	// Always try to remove the input source (idempotent)
+	// CLEANUP: Input removal is best-effort
+	if _, err := client.Inputs.RemoveInput(&inputs.RemoveInputParams{
+		InputName: &prefixedName,
+	}); err != nil {
+		s.logger.Debug("Could not remove input source (may not exist)", 
+			"name", prefixedName,
+			"error", err)
+	}
+	
+	return nil
+}
+
+// cleanupOrphanedManagedSources removes managed sources that aren't current or target.
+// This is a failsafe to catch resources from failed previous switches.
+// Returns error only for unexpected failures, not for missing resources.
+func (s *Switcher) cleanupOrphanedManagedSources(
+	client *goobs.Client,
+	sceneName string,
+	current, target *eventbus.ProgramData,
+) error {
+	prefix := s.config.SourceNamePrefix
+	
+	// Build set of protected source names
+	protectedSources := make(map[string]bool)
+	if current != nil {
+		protectedSources[prefix+current.SourceName] = true
+	}
+	if target != nil {
+		protectedSources[prefix+target.SourceName] = true
+	}
+
+	resp, err := client.SceneItems.GetSceneItemList(&sceneitems.GetSceneItemListParams{
+		SceneName: &sceneName,
+	})
+	if err != nil {
+		return fmt.Errorf("could not get scene item list: %w", err)
+	}
+
+	orphanCount := 0
+	for _, item := range resp.SceneItems {
+		// If this is a managed source (has our prefix) and it's NOT protected
+		if strings.HasPrefix(item.SourceName, prefix) && !protectedSources[item.SourceName] {
+			orphanCount++
+			s.logger.Info("Removing orphaned managed source", "name", item.SourceName)
+			
+			// CLEANUP: Hide and remove are best-effort
+			_, _ = client.SceneItems.SetSceneItemEnabled(&sceneitems.SetSceneItemEnabledParams{
+				SceneName:        &sceneName,
+				SceneItemId:      &item.SceneItemID,
+				SceneItemEnabled: &[]bool{false}[0],
+			})
+			_, _ = client.SceneItems.RemoveSceneItem(&sceneitems.RemoveSceneItemParams{
+				SceneName:   &sceneName,
+				SceneItemId: &item.SceneItemID,
+			})
+		}
+	}
+	
+	if orphanCount > 0 {
+		s.logger.Info("Cleaned up orphaned sources", "count", orphanCount)
+	}
+
+	return nil
+}
+
+// removeOBSInput handles the idempotent removal of a scene item and its underlying input source.
+// This is used for rollback scenarios and is best-effort (does not return errors).
+func (s *Switcher) removeOBSInput(client *goobs.Client, sceneName string, program *eventbus.ProgramData) error {
+	prefixedName := s.config.SourceNamePrefix + program.SourceName
+	
+	// CLEANUP: Best-effort removal
+	idResp, err := client.SceneItems.GetSceneItemId(&sceneitems.GetSceneItemIdParams{
+		SceneName:  &sceneName,
+		SourceName: &prefixedName,
+	})
+	if err == nil {
+		_, _ = client.SceneItems.RemoveSceneItem(&sceneitems.RemoveSceneItemParams{
+			SceneName:   &sceneName,
+			SceneItemId: &idResp.SceneItemId,
+		})
+	}
+	
+	_, _ = client.Inputs.RemoveInput(&inputs.RemoveInputParams{
+		InputName: &prefixedName,
+	})
+	
+	return nil
+}

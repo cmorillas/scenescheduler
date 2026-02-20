@@ -1,0 +1,192 @@
+{
+  "schedule": [
+    {
+      "behavior": {
+        "onEndAction": "hide",
+        "preloadSeconds": 0
+      },
+      "enabled": true,
+      "general": {
+        "backgroundColor": "#0d6e13",
+        "borderColor": "#141d9f",
+        "classNames": [],
+        "description": "",
+        "tags": [],
+        "textColor": "#ffffff"
+      },
+      "id": "evt-auc5y8b",
+      "source": {
+        "inputKind": "browser_source",
+        "inputSettings": {
+          "css": "body { background-color: rgba(0, 0, 0, 0); margin: 0px auto; overflow: hidden; }",
+          "height": 1080,
+          "width": 1920
+        },
+        "name": "AfternoonDashboard",
+        "transform": {},
+        "uri": "https://www.bloomberg.com/live/us"
+      },
+      "timing": {
+        "end": "2025-01-01T20:00:00Z",
+        "isRecurring": true,
+        "recurrence": {
+          "daysOfWeek": [
+            "MON",
+            "TUE",
+            "WED",
+            "THU",
+            "FRI",
+            "SAT",
+            "SUN"
+          ],
+          "endRecur": "",
+          "startRecur": "2025-01-01"
+        },
+        "start": "2025-01-01T14:00:00Z"
+      },
+      "title": "Bloomberg (Live)"
+    },
+    {
+      "behavior": {
+        "onEndAction": "hide",
+        "preloadSeconds": 0
+      },
+      "enabled": true,
+      "general": {
+        "backgroundColor": "#225d42",
+        "borderColor": "#bbc624",
+        "classNames": [],
+        "description": "",
+        "tags": [],
+        "textColor": "#ffffff"
+      },
+      "id": "evt-0zp2zwk",
+      "source": {
+        "inputKind": "browser_source",
+        "inputSettings": {
+          "css": "body { background-color: rgba(0, 0, 0, 0); margin: 0px auto; overflow: hidden; }",
+          "height": 1080,
+          "width": 1920
+        },
+        "name": "OvernightClock",
+        "transform": {},
+        "uri": "https://www.online-stopwatch.com/large-online-clock/"
+      },
+      "timing": {
+        "end": "2025-01-01T07:08:00Z",
+        "isRecurring": true,
+        "recurrence": {
+          "daysOfWeek": [
+            "MON",
+            "TUE",
+            "WED",
+            "THU",
+            "FRI",
+            "SAT",
+            "SUN"
+          ],
+          "endRecur": "",
+          "startRecur": "2025-01-01"
+        },
+        "start": "2025-01-01T00:00:00Z"
+      },
+      "title": "Contenido de Madrugada (Reloj)"
+    },
+    {
+      "behavior": {
+        "onEndAction": "hide",
+        "preloadSeconds": 0
+      },
+      "enabled": true,
+      "general": {
+        "backgroundColor": "#1f2fad",
+        "borderColor": "#0fc233",
+        "classNames": [],
+        "description": "",
+        "tags": [],
+        "textColor": "#ffffff"
+      },
+      "id": "evt-umfdrwc",
+      "source": {
+        "inputKind": "browser_source",
+        "inputSettings": {
+          "css": "body { background-color: rgba(0, 0, 0, 0); margin: 0px auto; overflow: hidden; }",
+          "height": 1080,
+          "width": 1920
+        },
+        "name": "EveningContent",
+        "transform": {
+          "PositionX": 100
+        },
+        "uri": "https://www.dw.com/en/live-tv/channel-english"
+      },
+      "timing": {
+        "end": "2025-01-01T23:59:00Z",
+        "isRecurring": true,
+        "recurrence": {
+          "daysOfWeek": [
+            "MON",
+            "TUE",
+            "WED",
+            "THU",
+            "FRI",
+            "SAT",
+            "SUN"
+          ],
+          "endRecur": "",
+          "startRecur": "2025-01-01"
+        },
+        "start": "2025-01-01T20:00:00Z"
+      },
+      "title": "Contenido Nocturno (VOD)"
+    },
+    {
+      "behavior": {
+        "onEndAction": "hide",
+        "preloadSeconds": 0
+      },
+      "enabled": true,
+      "general": {
+        "backgroundColor": "#812263",
+        "borderColor": "#000000",
+        "classNames": [],
+        "description": "https://www.rtve.es/play/videos/directo/24h/",
+        "tags": [],
+        "textColor": "#eceaea"
+      },
+      "id": "evt-ndlww1s",
+      "source": {
+        "inputKind": "ffmpeg_source",
+        "inputSettings": {
+          "css": "body { background-color: rgba(0, 0, 0, 0); margin: 0px auto; overflow: hidden; }",
+          "height": 1080,
+          "width": 1920
+        },
+        "name": "MorningNews",
+        "transform": {},
+        "uri": "/path/to/your/video.mp4"
+      },
+      "timing": {
+        "end": "2025-01-01T14:00:00Z",
+        "isRecurring": true,
+        "recurrence": {
+          "daysOfWeek": [
+            "MON",
+            "TUE",
+            "WED",
+            "THU",
+            "FRI",
+            "SAT",
+            "SUN"
+          ],
+          "endRecur": "",
+          "startRecur": "2025-01-01"
+        },
+        "start": "2025-01-01T07:08:00Z"
+      },
+      "title": "Toy Story"
+    }
+  ],
+  "scheduleName": "Schedule",
+  "version": "1.0"
+}

@@ -1,0 +1,73 @@
+// obscheduler/backend/logger/handler_gui.go
+package logger
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"os"
+)
+
+// GuiLogHandler implements slog.Handler and sends log records ONLY to the GUI.
+// It stores a callback function to add messages to the GUI log.
+type GuiLogHandler struct {
+	logLevel          slog.Level // Minimum level for this handler to process.
+	addLogMessageFunc func(string) // Field to store the callback function.
+}
+
+// NewGuiLogHandler creates a handler that logs ONLY to the GUI.
+// It requires a function that can add a message string to the GUI log.
+func NewGuiLogHandler(level slog.Level, addLogMessageFunc func(string)) *GuiLogHandler {
+	if addLogMessageFunc == nil {
+		fmt.Fprintln(os.Stderr, "WARNING: NewGuiLogHandler received nil log function. Logs to GUI will be discarded.")
+		return &GuiLogHandler{logLevel: level, addLogMessageFunc: nil}
+	}
+	return &GuiLogHandler{
+		logLevel:          level,
+		addLogMessageFunc: addLogMessageFunc,
+	}
+}
+
+// Enabled checks if the handler should process records of the given level.
+func (h *GuiLogHandler) Enabled(_ context.Context, level slog.Level) bool {
+	return level >= h.logLevel
+}
+
+// Handle processes the log record and sends it ONLY to the GUI with custom formatting.
+// It calls the stored callback function to add the message to the GUI.
+// Assumes the callback function (e.g., gui.AddLogMessage) is goroutine-safe (which we designed it to be using fyne.Do).
+func (h *GuiLogHandler) Handle(_ context.Context, rec slog.Record) error {
+	logLine := h.formatGuiLogRecord(rec) // Use this handler's specific format function
+
+	if h.addLogMessageFunc != nil { // Check if the callback function was provided
+		h.addLogMessageFunc(logLine) // Call the stored callback function
+	} else {
+		// Optional: log to stderr if handler was created with nil function but used
+	}
+	return nil // Assuming the callback function is safe/doesn't return critical errors here.
+}
+
+// formatGuiLogRecord formats an slog.Record into a text string specifically for the GUI.
+// This function is private to GuiLogHandler.
+func (h *GuiLogHandler) formatGuiLogRecord(rec slog.Record) string {
+	// Puedes modificar este formato para que sea diferente al de la consola.
+	// Por ejemplo, quizás quieras menos detalles o más colores en la GUI.
+	// Aquí un ejemplo que omite los atributos y usa un formato de hora diferente:
+	timestamp := rec.Time.Format("15:04:05") // Solo hora, minuto, segundo
+	return fmt.Sprintf("[%s] [%s]: %s",
+		timestamp,
+		rec.Level.String(), // String() para los niveles de slog (INFO, DEBUG, etc.)
+		rec.Message,
+	)
+}
+
+
+// WithAttrs for GuiLogHandler. Returns a new handler with the same callback function reference.
+func (h *GuiLogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return NewGuiLogHandler(h.logLevel, h.addLogMessageFunc) // Pass the existing callback function
+}
+
+// WithGroup for GuiLogHandler. Similar to WithAttrs, returns a new handler with the same callback function reference.
+func (h *GuiLogHandler) WithGroup(name string) slog.Handler {
+	return NewGuiLogHandler(h.logLevel, h.addLogMessageFunc) // Pass the existing callback function
+}

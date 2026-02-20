@@ -1,0 +1,75 @@
+// obscheduler/backend/logger/handler_console.go
+package logger
+
+import (
+	"context"
+	"fmt"
+	"log/slog"
+	"os"
+	"sync"
+)
+
+// ConsoleLogHandler implements slog.Handler and writes formatted logs to os.Stdout.
+type ConsoleLogHandler struct {
+	logLevel slog.Level // Minimum level for this handler to process.
+	mu       sync.Mutex // Mutex to protect concurrent writes to os.Stdout.
+}
+
+// NewConsoleLogHandler creates a handler that logs formatted messages to the console (Stdout).
+func NewConsoleLogHandler(level slog.Level) *ConsoleLogHandler {
+	return &ConsoleLogHandler{
+		logLevel: level,
+	}
+}
+
+// Enabled checks if the handler should process records of the given level.
+func (h *ConsoleLogHandler) Enabled(_ context.Context, level slog.Level) bool {
+	return level >= h.logLevel
+}
+
+// Handle processes the log record and writes it ONLY to the console (os.Stdout) with custom formatting.
+// It uses a mutex to ensure safe concurrent access to Stdout.
+func (h *ConsoleLogHandler) Handle(_ context.Context, rec slog.Record) error {
+	logLine := h.formatConsoleLogRecord(rec) // Use this handler's specific format function
+
+	h.mu.Lock()
+	defer h.mu.Unlock() // Ensure mutex is unlocked even if writing fails
+	_, err := fmt.Fprintln(os.Stdout, logLine)
+	return err
+}
+
+// formatConsoleLogRecord formats an slog.Record into a standard text string for the console.
+// This function is private to ConsoleLogHandler.
+func (h *ConsoleLogHandler) formatConsoleLogRecord(rec slog.Record) string {
+	timestamp := rec.Time.Format("15:04:05.000") // Custom short timestamp format (HH:MM:SS.ms)
+	logLine := fmt.Sprintf("[%s] [%s] %s",
+		timestamp,
+		rec.Level,
+		rec.Message,
+	)
+
+	attrsStr := ""
+	if rec.NumAttrs() > 0 {
+		attrsStr = " |" // Add separator only if there are attributes
+		rec.Attrs(func(attr slog.Attr) bool {
+			// Format attributes as key=value
+			attrsStr += fmt.Sprintf(" %s=%v", attr.Key, attr.Value.Any())
+			return true // Continue iterating over attributes
+		})
+	}
+	logLine += attrsStr
+	return logLine
+}
+
+
+// WithAttrs for ConsoleLogHandler. Returns a new basic instance.
+// slog.Logger handles attribute accumulation; they are available in rec.Attrs() in Handle.
+func (h *ConsoleLogHandler) WithAttrs(attrs []slog.Attr) slog.Handler {
+	return NewConsoleLogHandler(h.logLevel)
+}
+
+// WithGroup for ConsoleLogHandler. Similar to WithAttrs, returns a new basic instance.
+// slog.Logger handles groups; they are reflected in attribute key names in rec.Attrs().
+func (h *ConsoleLogHandler) WithGroup(name string) slog.Handler {
+	return NewConsoleLogHandler(h.logLevel)
+}

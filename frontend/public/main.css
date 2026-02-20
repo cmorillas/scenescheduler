@@ -1,0 +1,333 @@
+/* =========================================================
+   File: main.css
+   Main Stylesheet - Global Layout + CSS Variables
+   ========================================================= */
+
+/* ================================
+   ROOT VARIABLES (Single Source of Truth)
+   ================================ */
+:root {
+  /* Colors */
+  --primary: #3b82f6;
+  --primary-hover: #2563eb;
+  --success: #10b981;
+  --danger: #ef4444;
+  --secondary: #64748b;
+
+  /* Greyscale & Layout */
+  --bg-main: #f0f2f5;
+  --bg-panel: #ffffff;
+  --surface: #f8fafc;
+  --border: #e2e8f0;
+
+  /* Text */
+  --text-primary: #1c1e21;
+  --text-muted: #64748b;
+
+  /* Sizing & Shadow */
+  --radius: 8px;
+  --shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+
+  /* View-specific dimensions */
+  --view-header-height: 56px;
+  --monitor-sidebar-width: 350px;
+  --editor-actions-height: 60px;
+
+  /* Status indicators */
+  --color-current-program: #22c55e;
+  --color-dirty: #f59e0b;
+
+  /* Typography */
+  --font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-size-base: 0.875rem;
+  --font-size-small: 0.75rem;
+}
+
+/* ================================
+   BASE STYLES
+   ================================ */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 16px; /* Base for rem calculation */
+}
+
+body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  background-color: var(--bg-main);
+  color: var(--text-primary);
+  overflow: hidden;
+}
+
+/* Screen-reader only utility */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ================================
+   APP LAYOUT
+   ================================ */
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+/* View container - only one visible at a time */
+.app-view {
+  display: none;
+  flex: 1;
+  overflow: hidden;
+  padding: 1rem;
+}
+
+.app-view.active {
+  display: flex;
+}
+
+/* ================================
+   COMMON PANEL STYLES
+   ================================ */
+.panel {
+  background-color: var(--bg-panel);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 1rem;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.panel h3 {
+  margin: 0 0 0.75rem 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* ================================
+   BUTTON STYLES
+   ================================ */
+.btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  border-radius: var(--radius);
+  font-size: var(--font-size-base);
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background-color: var(--primary);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  background-color: var(--primary-hover);
+}
+
+.btn-secondary {
+  background-color: var(--secondary);
+  color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background-color: #475569;
+}
+
+.btn-danger {
+  background-color: var(--danger);
+  color: white;
+}
+
+.btn-danger:hover:not(:disabled) {
+  background-color: #dc2626;
+}
+
+/* ================================
+   STATUS INDICATORS
+   ================================ */
+.status-light {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.status-light.green {
+  background-color: var(--success);
+}
+
+.status-light.red {
+  background-color: var(--danger);
+}
+
+.status-light.orange {
+  background-color: var(--color-dirty);
+}
+
+.status-light.blue {
+  background-color: var(--primary);
+}
+
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem;
+  background-color: var(--surface);
+  border-radius: var(--radius);
+  font-size: var(--font-size-small);
+  color: var(--text-muted);
+}
+
+/* ================================
+   FORM ELEMENTS
+   ================================ */
+input[type="text"],
+input[type="number"],
+input[type="date"],
+input[type="datetime-local"],
+textarea,
+select {
+  width: 100%;
+  padding: 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-family: var(--font-family);
+  font-size: var(--font-size-base);
+  background-color: white;
+  color: var(--text-primary);
+}
+
+input[type="text"]:focus,
+input[type="number"]:focus,
+input[type="date"]:focus,
+input[type="datetime-local"]:focus,
+textarea:focus,
+select:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+input[readonly] {
+  background-color: var(--surface);
+  cursor: not-allowed;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.25rem;
+  font-size: var(--font-size-small);
+  font-weight: 500;
+  color: var(--text-primary);
+}
+
+/* ================================
+   SWITCH / TOGGLE - Styles moved to modal.css
+   ================================ */
+
+/* ================================
+   MODAL OVERLAY BASE
+   ================================ */
+.modal {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.5);
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.modal-content {
+  background-color: var(--bg-panel);
+  border-radius: var(--radius);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+  max-width: 90vw;
+  max-height: 90vh;
+  overflow: auto;
+}
+
+/* ================================
+   UTILITY CLASSES
+   ================================ */
+.hidden {
+  display: none !important;
+}
+
+.flex {
+  display: flex;
+}
+
+.flex-col {
+  flex-direction: column;
+}
+
+.gap-1 {
+  gap: 0.5rem;
+}
+
+.gap-2 {
+  gap: 1rem;
+}
+
+.items-center {
+  align-items: center;
+}
+
+.justify-between {
+  justify-content: space-between;
+}
+
+.text-muted {
+  color: var(--text-muted);
+}
+
+.text-small {
+  font-size: var(--font-size-small);
+}
+
+.mb-1 {
+  margin-bottom: 0.5rem;
+}
+
+.mb-2 {
+  margin-bottom: 1rem;
+}
+
+.mt-1 {
+  margin-top: 0.5rem;
+}
+
+.mt-2 {
+  margin-top: 1rem;
+}

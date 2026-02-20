@@ -1,0 +1,135 @@
+// backend/logger/logger.go
+
+package logger
+
+import (
+	"context"
+	"io"
+	"log/slog"	
+	"sync"
+
+	"gopkg.in/natefinch/lumberjack.v2"
+)
+
+const LoggerAttributeKeyModule = "module"
+
+type Logger struct {
+	Console     *slog.Logger
+	Gui         *slog.Logger
+	File        *slog.Logger
+	Default     *slog.Logger
+	fileCloser  io.Closer
+	closeOnce   sync.Once
+	mu          sync.Mutex
+	logFilePath string
+}
+
+const (
+	defaultLogMaxSizeMB  = 10
+	defaultLogMaxBackups = 3
+	defaultLogMaxAgeDays = 7
+	defaultLogCompress   = true
+)
+
+func NewLogger(
+	appCtx context.Context,
+	addGuiLogMessageFunc func(string),
+	levelConsole slog.Level,
+	levelGui slog.Level,
+	levelFile slog.Level,
+	logFilePath string,
+) (*Logger, error) {
+	// Console Logger
+	consoleHandler := NewConsoleLogHandler(levelConsole)
+	consoleLogger := slog.New(consoleHandler)
+
+	// GUI Logger
+	guiHandler := NewGuiLogHandler(levelGui, addGuiLogMessageFunc)
+	guiLogger := slog.New(guiHandler)
+
+	// File Logger Setup
+	var fileLogger *slog.Logger
+	var actualFileCloser io.Closer
+	fileWriter := io.Discard
+
+	if logFilePath != "" {
+		lj := &lumberjack.Logger{
+			Filename:   logFilePath,
+			MaxSize:    defaultLogMaxSizeMB,
+			MaxBackups: defaultLogMaxBackups,
+			MaxAge:     defaultLogMaxAgeDays,
+			Compress:   defaultLogCompress,
+			LocalTime:  true,
+		}
+
+		if _, err := lj.Write([]byte("File logging initialized.\n")); err != nil {
+			consoleLogger.Error("Failed to initialize file logging", "path", logFilePath, "error", err)
+		} else {
+			fileWriter = lj
+			actualFileCloser = lj
+		}
+	}
+
+	fileHandler := NewFileLogHandler(levelFile, fileWriter)
+	fileLogger = slog.New(fileHandler)
+
+	appLogger := &Logger{
+		Console:     consoleLogger,
+		Gui:         guiLogger,
+		File:        fileLogger,
+		Default:     consoleLogger,
+		fileCloser:  actualFileCloser,
+		logFilePath: logFilePath,
+	}
+
+	slog.SetDefault(appLogger.Default)
+
+	if actualFileCloser != nil {
+		go func() {
+			<-appCtx.Done()
+			appLogger.Close()
+		}()
+	}
+
+	return appLogger, nil
+}
+
+func (l *Logger) WithPrefix(prefix string) *Logger {
+	if l == nil {		
+		emergencyHandler := NewConsoleLogHandler(slog.LevelDebug)
+		emergencyLogger := slog.New(emergencyHandler).With(LoggerAttributeKeyModule, prefix)
+		return &Logger{
+			Console: emergencyLogger,
+			Gui:     emergencyLogger,
+			File:    emergencyLogger,
+			Default: emergencyLogger,
+		}
+	}
+
+	moduleAttr := slog.String(LoggerAttributeKeyModule, prefix)
+
+	return &Logger{
+		Console:     l.Console.With(moduleAttr),
+		Gui:         l.Gui.With(moduleAttr),
+		File:        l.File.With(moduleAttr),
+		Default:     l.Default.With(moduleAttr),
+		fileCloser:  l.fileCloser,
+		logFilePath: l.logFilePath,
+	}
+}
+
+func (l *Logger) Close() error {
+	var err error
+	if l.fileCloser != nil {
+		l.closeOnce.Do(func() {
+			l.mu.Lock()
+			defer l.mu.Unlock()
+			if l.fileCloser == nil {
+				return
+			}
+			err = l.fileCloser.Close()
+			l.fileCloser = nil
+		})
+	}
+	return err
+}

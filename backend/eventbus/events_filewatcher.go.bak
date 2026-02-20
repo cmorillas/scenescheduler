@@ -1,0 +1,21 @@
+// backend/eventbus/events_filewatcher.go
+package eventbus
+
+import (
+	"time"
+)
+
+// =============================================================================
+// FileWatcher Events
+// =============================================================================
+
+// ScheduleFileChanged is published by the FileWatcher when the schedule.json file
+// has been modified and successfully validated. This is the trigger for the
+// Scheduler module to reload its configuration.
+type ScheduleFileChanged struct {
+	Timestamp time.Time
+	Path      string // The path to the file that changed.
+}
+
+func (e ScheduleFileChanged) GetTopic() string { return "filewatcher.event.scheduleFileChanged" }
+

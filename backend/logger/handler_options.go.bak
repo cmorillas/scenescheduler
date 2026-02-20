@@ -1,0 +1,21 @@
+// backend/logger/handler_options.go
+package logger
+
+import "log/slog"
+
+// HandlerOptions provides common options for slog.Handler implementations.
+type HandlerOptions struct {
+	// AddSource causes the handler to compute the source code position
+	// of the log statement and add a SourceKey attribute to the output.
+	AddSource bool
+
+	// Level reports the minimum record level that will be logged.
+	// The handler discards records with levels below Level.
+	// If Level is nil, the handler assumes LevelInfo.
+	// The handler may be used concurrently.
+	Level slog.Leveler // Changed from slog.Level to slog.Leveler for flexibility
+
+	// ReplaceAttr is called to rewrite attributes from groups or special
+	// attributes like SourceKey and MessageKey.
+	ReplaceAttr func(groups []string, a slog.Attr) slog.Attr
+}

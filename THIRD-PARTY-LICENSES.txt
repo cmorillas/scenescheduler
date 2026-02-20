@@ -1,0 +1,89 @@
+Scene Scheduler - Third Party Licenses
+===============================================
+
+Copyright (c) 2025 Scene Scheduler, S.L. - All Rights Reserved
+This software is licensed under the MIT License. See LICENSE file for terms.
+
+This software includes the following third-party open-source components:
+
+================================================================================
+FullCalendar
+================================================================================
+Version: 6.1.19
+License: MIT License
+Copyright: (c) 2024 Adam Shaw
+Website: https://fullcalendar.io
+Docs: https://fullcalendar.io/docs/initialize-globals
+
+MIT License Text:
+-----------------
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+
+================================================================================
+Go Third-Party Dependencies (Backend)
+================================================================================
+
+The following Go modules are used under their respective licenses:
+
+1. Fyne (fyne.io/fyne/v2) - v2.6.3
+   License: BSD 3-Clause License
+   Copyright: (c) Fyne.io developers
+   Website: https://fyne.io
+
+2. goobs (github.com/andreykaipov/goobs) - v1.5.6
+   License: MIT License
+   Copyright: (c) Andrey Kaipov
+   Website: https://github.com/andreykaipov/goobs
+
+3. fsnotify (github.com/fsnotify/fsnotify) - v1.9.0
+   License: BSD 3-Clause License
+   Copyright: (c) fsnotify Authors
+   Website: https://github.com/fsnotify/fsnotify
+
+4. gorilla/websocket (github.com/gorilla/websocket) - v1.5.3
+   License: BSD 2-Clause License
+   Copyright: (c) Gorilla web toolkit
+   Website: https://github.com/gorilla/websocket
+
+5. pion/mediadevices (github.com/pion/mediadevices) - v0.7.2
+   License: MIT License
+   Copyright: (c) Pion contributors
+   Website: https://github.com/pion/mediadevices
+
+6. pion/webrtc (github.com/pion/webrtc/v4) - v4.1.5
+   License: MIT License
+   Copyright: (c) Pion contributors
+   Website: https://github.com/pion/webrtc
+
+7. lumberjack (gopkg.in/natefinch/lumberjack.v2) - v2.2.1
+   License: MIT License
+   Copyright: (c) Nate Finch
+   Website: https://github.com/natefinch/lumberjack
+
+For full license texts of all dependencies, see their respective repositories.
+
+================================================================================
+License Information Resources
+================================================================================
+
+To view the full license text for any dependency:
+- Go modules: Run `go list -m -json <module>` or visit the GitHub repository
+- FullCalendar: See the embedded license in the JavaScript file header
+
+All dependencies are used in compliance with their respective license terms.
