@@ -25,18 +25,10 @@ jobs:
       - name: Build Go Binary
         run: go build -ldflags="-s -w" -o scenescheduler .
 
-      - name: Build hls-generator
-        run: |
-          cd third-party/hls-generator
-          mkdir build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release
-          make
-          cp hls-generator ../../../hls-generator
-
       - name: Package
         run: |
           mkdir scenescheduler-linux-amd64
-          cp scenescheduler hls-generator config.json schedule.json README.md LICENSE THIRD-PARTY-LICENSES.txt scenescheduler-linux-amd64/
+          cp scenescheduler config.json schedule.json README.md LICENSE THIRD-PARTY-LICENSES.txt scenescheduler-linux-amd64/
           tar -czvf scenescheduler-linux-amd64.tar.gz scenescheduler-linux-amd64/
 
       - name: Upload Artifact
@@ -61,18 +53,10 @@ jobs:
       - name: Build Go Binary
         run: go build -ldflags="-s -w" -o scenescheduler .
 
-      - name: Build hls-generator
-        run: |
-          cd third-party/hls-generator
-          mkdir build && cd build
-          cmake .. -DCMAKE_BUILD_TYPE=Release
-          make
-          cp hls-generator ../../../hls-generator
-
       - name: Package
         run: |
           mkdir scenescheduler-macos-arm64
-          cp scenescheduler hls-generator config.json schedule.json README.md LICENSE THIRD-PARTY-LICENSES.txt scenescheduler-macos-arm64/
+          cp scenescheduler config.json schedule.json README.md LICENSE THIRD-PARTY-LICENSES.txt scenescheduler-macos-arm64/
           tar -czvf scenescheduler-macos-arm64.tar.gz scenescheduler-macos-arm64/
 
       - name: Upload Artifact
@@ -100,26 +84,16 @@ jobs:
             mingw-w64-ucrt-x86_64-pkgconf
             mingw-w64-ucrt-x86_64-libvpx
             mingw-w64-ucrt-x86_64-opus
-            mingw-w64-ucrt-x86_64-cmake
-            make
           path-type: inherit
 
       - name: Build Go Binary
         run: go build -ldflags="-s -w" -o scenescheduler.exe .
 
-      - name: Build hls-generator
-        run: |
-          cd third-party/hls-generator
-          mkdir build && cd build
-          cmake .. -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release
-          make
-          cp hls-generator.exe ../../../hls-generator.exe
-
       - name: Package
         shell: powershell
         run: |
           New-Item -ItemType Directory -Path scenescheduler-windows-amd64
-          Copy-Item scenescheduler.exe, hls-generator.exe, config.json, schedule.json, README.md, LICENSE, THIRD-PARTY-LICENSES.txt -Destination scenescheduler-windows-amd64/
+          Copy-Item scenescheduler.exe, config.json, schedule.json, README.md, LICENSE, THIRD-PARTY-LICENSES.txt -Destination scenescheduler-windows-amd64/
           Compress-Archive -Path scenescheduler-windows-amd64 -DestinationPath scenescheduler-windows-amd64.zip
 
       - name: Upload Artifact
