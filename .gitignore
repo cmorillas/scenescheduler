@@ -1,6 +1,7 @@
-# Binaries and build artifacts
-scenescheduler
-hls-generator
+# Build output directory
+build/
+
+# Binaries
 *.exe
 *.exe~
 *.dll
@@ -30,10 +31,8 @@ hls_preview_output/
 go.work
 go.work.sum
 
-# Ide
-.claude/
-
 # IDEs
+.claude/
 .vscode/
 .idea/
 *.swp
@@ -43,6 +42,8 @@ go.work.sum
 # OS
 .DS_Store
 Thumbs.db
+
+# Archives and generated docs
 *.bak
 *.tar.gz
 *.pdf
