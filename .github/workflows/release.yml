@@ -3,74 +3,29 @@ name: Release
 on:
   push:
     tags:
-      - 'v*' # Trigger build on tags starting with 'v'
+      - 'v*'
+
+permissions:
+  contents: write
 
 jobs:
-  build:
-    name: Build & Release for ${{ matrix.os }}
-    runs-on: ${{ matrix.os }}
-    
-    strategy:
-      matrix:
-        include:
-          - os: ubuntu-latest
-            artifact: scenescheduler-linux-amd64
-            goos: linux
-            goarch: amd64
-    
-          - os: windows-latest
-            artifact: scenescheduler-windows-amd64
-            goos: windows
-            goarch: amd64
-            
-          - os: macos-latest
-            artifact: scenescheduler-macos-amd64
-            goos: darwin
-            goarch: amd64
-            
-          - os: macos-latest
-            artifact: scenescheduler-macos-arm64
-            goos: darwin
-            goarch: arm64
-
+  build-linux:
+    name: Build Linux amd64
+    runs-on: ubuntu-latest
     steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-        with:
-          submodules: recursive
+      - uses: actions/checkout@v4
 
-      - name: Setup Go
-        uses: actions/setup-go@v5
+      - uses: actions/setup-go@v5
         with:
-          go-version: '1.23' # Or whatever lowest version is required
+          go-version: '1.23'
 
-      - name: Install CGO Dependencies (Ubuntu)
-        if: matrix.os == 'ubuntu-latest'
+      - name: Install Dependencies
         run: sudo apt-get update && sudo apt-get install -y pkg-config libx11-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev libglx-dev libgl1-mesa-dev libxxf86vm-dev libvpx-dev libopus-dev libasound2-dev
 
-      - name: Install CGO Dependencies (macOS)
-        if: matrix.os == 'macos-latest'
-        run: brew install pkg-config libvpx opus
+      - name: Build Go Binary
+        run: go build -ldflags="-s -w" -o scenescheduler .
 
-      - name: Install CGO Dependencies (Windows)
-        if: matrix.os == 'windows-latest'
-        uses: msys2/setup-msys2@v2
-        with:
-          msystem: UCRT64
-          update: true
-          install: mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-pkgconf mingw-w64-ucrt-x86_64-libvpx mingw-w64-ucrt-x86_64-opus
-          path-type: inherit
-
-      - name: Compile Go Binary (Scene Scheduler)
-        env:
-          GOOS: ${{ matrix.goos }}
-          GOARCH: ${{ matrix.goarch }}
-        run: |
-          go build -ldflags="-s -w" -o scenescheduler${{ matrix.os == 'windows-latest' && '.exe' || '' }} .
-
-      # macOS / Linux C++ Build
-      - name: Compile C++ hls-generator (Unix)
-        if: matrix.os != 'windows-latest'
+      - name: Build hls-generator
         run: |
           cd third-party/hls-generator
           mkdir build && cd build
@@ -78,47 +33,116 @@ jobs:
           make
           cp hls-generator ../../../hls-generator
 
-      # Windows C++ Build (MSVC natively on the runner or MinGW)
-      - name: Compile C++ hls-generator (Windows)
-        if: matrix.os == 'windows-latest'
+      - name: Package
+        run: |
+          mkdir scenescheduler-linux-amd64
+          cp scenescheduler hls-generator config.json schedule.json README.md LICENSE THIRD-PARTY-LICENSES.txt scenescheduler-linux-amd64/
+          tar -czvf scenescheduler-linux-amd64.tar.gz scenescheduler-linux-amd64/
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: scenescheduler-linux-amd64
+          path: scenescheduler-linux-amd64.tar.gz
+
+  build-macos:
+    name: Build macOS arm64
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: '1.23'
+
+      - name: Install Dependencies
+        run: brew install pkg-config libvpx opus
+
+      - name: Build Go Binary
+        run: go build -ldflags="-s -w" -o scenescheduler .
+
+      - name: Build hls-generator
         run: |
           cd third-party/hls-generator
-          mkdir build
-          cd build
-          cmake .. -G "MinGW Makefiles" -DCMAKE_BUILD_TYPE=Release
-          mingw32-make
-          copy hls-generator.exe ..\..\..\hls-generator.exe
-        shell: cmd
+          mkdir build && cd build
+          cmake .. -DCMAKE_BUILD_TYPE=Release
+          make
+          cp hls-generator ../../../hls-generator
 
-      # Package phase
-      - name: Package Linux/macOS
-        if: matrix.os != 'windows-latest'
+      - name: Package
         run: |
-          mkdir ${{ matrix.artifact }}
-          cp scenescheduler hls-generator config.json schedule.json README.md LICENSE THIRD-PARTY-LICENSES.txt "User Manual (English).pdf" "User Manual (Spanish).pdf" ${{ matrix.artifact }}/
-          tar -czvf ${{ matrix.artifact }}.tar.gz ${{ matrix.artifact }}/
+          mkdir scenescheduler-macos-arm64
+          cp scenescheduler hls-generator config.json schedule.json README.md LICENSE THIRD-PARTY-LICENSES.txt scenescheduler-macos-arm64/
+          tar -czvf scenescheduler-macos-arm64.tar.gz scenescheduler-macos-arm64/
 
-      - name: Package Windows
-        if: matrix.os == 'windows-latest'
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: scenescheduler-macos-arm64
+          path: scenescheduler-macos-arm64.tar.gz
+
+  build-windows:
+    name: Build Windows amd64
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: msys2/setup-msys2@v2
+        with:
+          msystem: UCRT64
+          update: true
+          install: >-
+            mingw-w64-ucrt-x86_64-gcc
+            mingw-w64-ucrt-x86_64-go
+            mingw-w64-ucrt-x86_64-pkgconf
+            mingw-w64-ucrt-x86_64-libvpx
+            mingw-w64-ucrt-x86_64-opus
+            mingw-w64-ucrt-x86_64-cmake
+            make
+          path-type: inherit
+
+      - name: Build Go Binary
+        run: go build -ldflags="-s -w" -o scenescheduler.exe .
+
+      - name: Build hls-generator
         run: |
-          md ${{ matrix.artifact }}
-          copy scenescheduler.exe ${{ matrix.artifact }}\
-          copy hls-generator.exe ${{ matrix.artifact }}\
-          copy config.json ${{ matrix.artifact }}\
-          copy schedule.json ${{ matrix.artifact }}\
-          copy README.md ${{ matrix.artifact }}\
-          copy LICENSE ${{ matrix.artifact }}\
-          copy THIRD-PARTY-LICENSES.txt ${{ matrix.artifact }}\
-          copy "User Manual (English).pdf" ${{ matrix.artifact }}\
-          copy "User Manual (Spanish).pdf" ${{ matrix.artifact }}\
-          Compress-Archive -Path ${{ matrix.artifact }} -DestinationPath ${{ matrix.artifact }}.zip
+          cd third-party/hls-generator
+          mkdir build && cd build
+          cmake .. -G "Unix Makefiles" -DCMAKE_BUILD_TYPE=Release
+          make
+          cp hls-generator.exe ../../../hls-generator.exe
+
+      - name: Package
         shell: powershell
+        run: |
+          New-Item -ItemType Directory -Path scenescheduler-windows-amd64
+          Copy-Item scenescheduler.exe, hls-generator.exe, config.json, schedule.json, README.md, LICENSE, THIRD-PARTY-LICENSES.txt -Destination scenescheduler-windows-amd64/
+          Compress-Archive -Path scenescheduler-windows-amd64 -DestinationPath scenescheduler-windows-amd64.zip
 
-      - name: Upload Release Assets
-        uses: softprops/action-gh-release@v1
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: scenescheduler-windows-amd64
+          path: scenescheduler-windows-amd64.zip
+
+  release:
+    name: Create Release
+    needs: [build-linux, build-macos, build-windows]
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
         with:
           files: |
-            ${{ matrix.artifact }}.tar.gz
-            ${{ matrix.artifact }}.zip
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+            dist/scenescheduler-linux-amd64/scenescheduler-linux-amd64.tar.gz
+            dist/scenescheduler-macos-arm64/scenescheduler-macos-arm64.tar.gz
+            dist/scenescheduler-windows-amd64/scenescheduler-windows-amd64.zip
+          generate_release_notes: true
