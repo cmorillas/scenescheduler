@@ -15,10 +15,8 @@ package feed
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"io"
-	"sync/atomic"
 	"time"
 
 	"github.com/pion/mediadevices"
@@ -186,24 +184,83 @@ func (f *Feed) monitorTrack(ctx context.Context, trackType string, failureChan c
 		}
 	})
 
-	// Periodic health check loop.
-	ticker := time.NewTicker(healthCheckInterval)
-	defer ticker.Stop()
-	var checkInProgress atomic.Bool
+	// 1. Create a channel to communicate health check results from the worker
+	resultChan := make(chan error, 1)
 
+	// 2. Start a single dedicated worker for health checks
+	// This ensures that even if a read blocks indefinitely, we don't leak goroutines
+	workerCtx, workerCancel := context.WithCancel(ctx)
+	defer workerCancel()
+
+	go func() {
+		defer func() {
+			if r := recover(); r != nil {
+				f.logger.Error("Panic in health check worker", "trackType", trackType, "panic", r)
+			}
+		}()
+
+		for {
+			select {
+			case <-workerCtx.Done():
+				return
+			default:
+			}
+
+			var err error
+			switch t := track.(type) {
+			case *mediadevices.VideoTrack:
+				reader := t.NewReader(false)
+				_, release, readErr := reader.Read()
+				if release != nil {
+					release()
+				}
+				err = readErr
+			case *mediadevices.AudioTrack:
+				reader := t.NewReader(false)
+				_, release, readErr := reader.Read()
+				if release != nil {
+					release()
+				}
+				err = readErr
+			default:
+				err = fmt.Errorf("unknown track type: %T", track)
+			}
+
+			// Send result back, but don't block if no one is listening (e.g., during timeout handling)
+			select {
+			case resultChan <- err:
+			case <-workerCtx.Done():
+				return
+			default:
+				// If the channel is full, the main loop hasn't picked up the last result yet.
+				// We discard this result to prevent blocking the worker.
+			}
+
+			// Sleep before the next health check
+			select {
+			case <-time.After(healthCheckInterval):
+			case <-workerCtx.Done():
+				return
+			}
+		}
+	}()
+
+	// 3. Main tracking loop
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-ticker.C:
-			if !checkInProgress.CompareAndSwap(false, true) {
-				f.logger.Debug("Skipping health check, previous still running", "trackType", trackType)
-				continue
+		case <-time.After(healthCheckInterval):
+			// Initiate a health check evaluation cycle
+			var healthErr error
+
+			// Wait for a result from the worker, up to the timeout
+			select {
+			case result := <-resultChan:
+				healthErr = result
+			case <-time.After(healthCheckTimeout):
+				healthErr = fmt.Errorf("health check timed out, device may be frozen")
 			}
-			checkCtx, cancel := context.WithTimeout(context.Background(), healthCheckTimeout)
-			healthErr := f.checkTrackHealth(checkCtx, track)
-			cancel()
-			checkInProgress.Store(false)
 
 			now := time.Now()
 			if healthErr != nil {
@@ -223,53 +280,6 @@ func (f *Feed) monitorTrack(ctx context.Context, trackType string, failureChan c
 				f.updateLastRead(trackType, now)
 			}
 		}
-	}
-}
-
-// ============================================================================
-// 4) HEALTH CHECK IMPLEMENTATION
-// ============================================================================
-
-// checkTrackHealth performs a real health check by attempting to read data
-// from the track. Returns error if the read fails or times out.
-func (f *Feed) checkTrackHealth(ctx context.Context, track mediadevices.Track) error {
-	if track == nil {
-		return errors.New("track is nil")
-	}
-
-	result := make(chan error, 1)
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				result <- fmt.Errorf("panic during health check: %v", r)
-			}
-		}()
-
-		switch t := track.(type) {
-		case *mediadevices.VideoTrack:
-			reader := t.NewReader(false)
-			_, release, err := reader.Read()
-			if release != nil {
-				release()
-			}
-			result <- err
-		case *mediadevices.AudioTrack:
-			reader := t.NewReader(false)
-			_, release, err := reader.Read()
-			if release != nil {
-				release()
-			}
-			result <- err
-		default:
-			result <- fmt.Errorf("unknown track type: %T", track)
-		}
-	}()
-
-	select {
-	case err := <-result:
-		return err
-	case <-ctx.Done():
-		return fmt.Errorf("health check timed out, device may be frozen")
 	}
 }
 
