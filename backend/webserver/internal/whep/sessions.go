@@ -72,7 +72,11 @@ func (h *Handler) handleNewSession(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Read SDP offer from the client.
-	offerSDP, err := io.ReadAll(r.Body)
+	// Limit body size to 64KB to prevent DoS via oversized payloads.
+	// A typical SDP offer is well under 10KB.
+	const maxSDPSize = 64 * 1024
+	limitedBody := http.MaxBytesReader(w, r.Body, maxSDPSize)
+	offerSDP, err := io.ReadAll(limitedBody)
 	if err != nil {
 		http.Error(w, "Failed to read SDP offer", http.StatusBadRequest)
 		return

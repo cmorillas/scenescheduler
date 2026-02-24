@@ -122,23 +122,20 @@ func Publish[T Event](bus *EventBus, event T) {
     topic := event.GetTopic()
 
     bus.mu.RLock()
-    topicHandlers := bus.subscribers[topic]
     closed := bus.closed
+    topicHandlers := bus.subscribers[topic]
+    handlersCopy := make([]subscription, 0, len(topicHandlers))
+    for _, sub := range topicHandlers {
+        handlersCopy = append(handlersCopy, sub)
+    }
     bus.mu.RUnlock()
 
     if closed {
         bus.logWarn("publish failed: bus is closed for topic '%s'", topic)
         return
     }
-    if len(topicHandlers) == 0 {
+    if len(handlersCopy) == 0 {
         return // Publishing to a topic with no subscribers is normal, so no log needed.
-    }
-
-    // Copy the handlers to avoid holding the lock during execution
-    // and to protect against modifications while iterating.
-    handlersCopy := make([]subscription, 0, len(topicHandlers))
-    for _, sub := range topicHandlers {
-        handlersCopy = append(handlersCopy, sub)
     }
 
     for _, sub := range handlersCopy {

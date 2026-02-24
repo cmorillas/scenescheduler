@@ -24,26 +24,26 @@ type Config struct {
 }
 
 type MediaSourceConfig struct {
-    VideoDeviceIdentifier string `json:"videoDeviceIdentifier"`
-    AudioDeviceIdentifier string `json:"audioDeviceIdentifier"`
-    Quality               string `json:"quality"`
-    
-    // Derived fields (populated at runtime by Manager, not from JSON)
-    VideoWidth      int `json:"-"`
-    VideoHeight     int `json:"-"`
-    VideoBitrate    int `json:"-"`
-    AudioChannels   int `json:"-"`
-    AudioSampleRate int `json:"-"`
+	VideoDeviceIdentifier string `json:"videoDeviceIdentifier"`
+	AudioDeviceIdentifier string `json:"audioDeviceIdentifier"`
+	Quality               string `json:"quality"`
+
+	// Derived fields (populated at runtime by Manager, not from JSON)
+	VideoWidth      int `json:"-"`
+	VideoHeight     int `json:"-"`
+	VideoBitrate    int `json:"-"`
+	AudioChannels   int `json:"-"`
+	AudioSampleRate int `json:"-"`
 }
 
 type WebServerConfig struct {
-	Port            string `json:"port"`
-	User            string `json:"user"`
-	Password        string `json:"password"`
-	HlsPath         string `json:"hlsPath"`
-	EnableTLS       bool   `json:"enableTls"`
-	CertFilePath    string `json:"certFilePath"`
-	KeyFilePath     string `json:"keyFilePath"`
+	Port            string        `json:"port"`
+	User            string        `json:"user"`
+	Password        string        `json:"password"`
+	HlsPath         string        `json:"hlsPath"`
+	EnableTLS       bool          `json:"enableTls"`
+	CertFilePath    string        `json:"certFilePath"`
+	KeyFilePath     string        `json:"keyFilePath"`
 	ReadTimeout     time.Duration `json:"-"`
 	WriteTimeout    time.Duration `json:"-"`
 	ShutdownTimeout time.Duration `json:"-"`
@@ -77,7 +77,7 @@ type DefaultSource struct {
 	InputKind     string      `json:"inputKind"`
 	URI           string      `json:"uri"`
 	InputSettings interface{} `json:"inputSettings"`
-	Transform	  interface{} `json:"transform"`
+	Transform     interface{} `json:"transform"`
 }
 
 // NewConfig loads, decodes, and validates the configuration from the fixed default path.
@@ -145,6 +145,11 @@ func validateSafeRelativePath(path, fieldName string) error {
 		return fmt.Errorf("%s cannot be empty", fieldName)
 	}
 
+	// Reject current directory reference (e.g. ".", "./", etc.)
+	if filepath.Clean(path) == "." {
+		return fmt.Errorf("%s cannot be the current directory ('.' or equivalent)", fieldName)
+	}
+
 	// Reject absolute paths (Unix and Windows)
 	if filepath.IsAbs(path) {
 		return fmt.Errorf("%s must be a relative path, got absolute path: %s", fieldName, path)
@@ -163,4 +168,3 @@ func validateSafeRelativePath(path, fieldName string) error {
 
 	return nil
 }
-

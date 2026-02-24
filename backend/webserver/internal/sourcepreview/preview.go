@@ -168,7 +168,7 @@ func (m *Manager) processPreview(session *Session) {
 			}
 
 			// Cleanup failed preview
-			m.StopPreview(session.RemoteAddr)
+			m.StopPreview(session.ConnectionID)
 			return
 		}
 	}

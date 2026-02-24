@@ -18,6 +18,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"sync/atomic"
 	"time"
 
 	"github.com/pion/mediadevices"
@@ -188,19 +189,24 @@ func (f *Feed) monitorTrack(ctx context.Context, trackType string, failureChan c
 	// Periodic health check loop.
 	ticker := time.NewTicker(healthCheckInterval)
 	defer ticker.Stop()
+	var checkInProgress atomic.Bool
 
 	for {
 		select {
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+			if !checkInProgress.CompareAndSwap(false, true) {
+				f.logger.Debug("Skipping health check, previous still running", "trackType", trackType)
+				continue
+			}
 			checkCtx, cancel := context.WithTimeout(context.Background(), healthCheckTimeout)
 			healthErr := f.checkTrackHealth(checkCtx, track)
 			cancel()
+			checkInProgress.Store(false)
 
 			now := time.Now()
 			if healthErr != nil {
-				f.updateLastRead(trackType, now)
 				lastRead := f.getLastRead(trackType)
 				if !lastRead.IsZero() {
 					since := now.Sub(lastRead)

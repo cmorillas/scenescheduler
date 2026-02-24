@@ -43,10 +43,10 @@ type GUI struct {
 	window  fyne.Window // Main application window
 
 	// --- Lifecycle Management ---
-	ctx              context.Context         // Module context for lifecycle management
-	cancelCtx        context.CancelFunc      // Context cancellation function
-	stopOnce         sync.Once               // Ensures Stop() executes only once
-	cleanupOnce      sync.Once               // Ensures cleanup() executes only once
+	ctx              context.Context            // Module context for lifecycle management
+	cancelCtx        context.CancelFunc         // Context cancellation function
+	stopOnce         sync.Once                  // Ensures Stop() executes only once
+	cleanupOnce      sync.Once                  // Ensures cleanup() executes only once
 	unsubscribeFuncs []eventbus.UnsubscribeFunc // Event subscriptions to clean up
 
 	// --- UI Widgets (Direct References) ---
@@ -108,7 +108,7 @@ func New(appCtx context.Context, eventBus *eventbus.EventBus) *GUI {
 	uiContent := g.buildLayout()
 	g.window.SetContent(uiContent)
 	g.window.Resize(fyne.NewSize(800, 600))
-	g.window.CenterOnScreen()
+	// g.window.CenterOnScreen() // Causes panic on headless/SSH setups
 	g.window.SetMaster()
 
 	// Subscribe to events before returning

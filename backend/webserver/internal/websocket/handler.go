@@ -21,8 +21,9 @@ import (
 	"net/http"
 	"sync"
 
-	"github.com/gorilla/websocket"
 	"scenescheduler/backend/logger"
+
+	"github.com/gorilla/websocket"
 )
 
 // Disconnect reason constants
@@ -43,9 +44,9 @@ type Handler struct {
 	mu          sync.RWMutex
 
 	// --- Dependencies ---
-	logger      *logger.Logger
-	callbacks   Callbacks
-	upgrader    websocket.Upgrader
+	logger    *logger.Logger
+	callbacks Callbacks
+	upgrader  websocket.Upgrader
 }
 
 // =============================================================================
@@ -235,6 +236,14 @@ func (h *Handler) SendToClient(clientID, messageType string, payload interface{}
 		return
 	}
 
+	// Protect against send-on-closed-channel panic.
+	// Between releasing RLock above and sending below, unregister() may close conn.send.
+	defer func() {
+		if r := recover(); r != nil {
+			h.logger.Warn("Send failed (connection closed concurrently)", "connID", clientID)
+		}
+	}()
+
 	select {
 	case conn.send <- msgBytes:
 	default:
@@ -256,10 +265,17 @@ func (h *Handler) Broadcast(messageType string, payload json.RawMessage) {
 	defer h.mu.RUnlock()
 
 	for _, conn := range h.connections {
-		select {
-		case conn.send <- msgBytes:
-		default:
-			h.logger.Warn("Connection send buffer full, dropping broadcast", "connID", conn.ID)
-		}
+		func(c *WSConnection) {
+			defer func() {
+				if r := recover(); r != nil {
+					h.logger.Warn("Broadcast failed (connection closed concurrently)", "connID", c.ID)
+				}
+			}()
+			select {
+			case c.send <- msgBytes:
+			default:
+				h.logger.Warn("Connection send buffer full, dropping broadcast", "connID", c.ID)
+			}
+		}(conn)
 	}
 }
