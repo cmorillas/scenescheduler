@@ -16,12 +16,11 @@
     "port": "8080",
     "user": "admin",
     "password": "YOUR_WEBSERVER_PASSWORD",
-    "HlsPath": "hls",
+    "hlsPath": "hls",
     "enableTls": false,
     "certFilePath": "",
     "keyFilePath": ""
-    
-  },  
+  },
   "obs": {
     "host": "localhost",
     "port": 4455,
@@ -31,7 +30,7 @@
     "scheduleSceneAux": "_SCHEDULER_AUX",
     "sourceNamePrefix": "_SCH_"
   },
-  "paths": {    
+  "paths": {
     "logFile": "logs.txt",
     "schedule": "schedule.json"
   }

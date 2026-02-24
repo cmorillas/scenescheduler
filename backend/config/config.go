@@ -2,8 +2,10 @@
 package config
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -90,8 +92,14 @@ func NewConfig() (*Config, error) {
 	cfg := &Config{}
 	cfg.applyDefaults()
 
-	if err := json.Unmarshal(data, &cfg); err != nil {
+	dec := json.NewDecoder(bytes.NewReader(data))
+	dec.DisallowUnknownFields()
+
+	if err := dec.Decode(cfg); err != nil {
 		return nil, fmt.Errorf("failed to parse config file '%s': %w", defaultConfigPath, err)
+	}
+	if err := dec.Decode(&struct{}{}); err != io.EOF {
+		return nil, fmt.Errorf("failed to parse config file '%s': extra JSON content", defaultConfigPath)
 	}
 
 	if err := cfg.validate(); err != nil {
