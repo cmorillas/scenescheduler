@@ -52,6 +52,10 @@ Before running the project, assure you have the following installed:
 - `/backend`: Core logic (Scheduler, EventBus, Core Logic, OBS Client, Web Server).
 - `/frontend`: Web UI assets and public files.
 
+## Contact
+
+For questions, suggestions, or support: **info@scenescheduler.com**
+
 ## License
 
 This project is released under the terms specified in the `LICENSE` file. Please also consult `THIRD-PARTY-LICENSES.txt` for details regarding the open-source libraries used within the application.
