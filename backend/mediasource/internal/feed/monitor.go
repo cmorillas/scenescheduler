@@ -8,7 +8,7 @@
 // 1) Public Monitoring API
 // 2) Monitoring Orchestration
 // 3) Per-Track Monitoring
-// 4) Health Check Implementation
+// 4) Track Read Helper
 // 5) Failure Detection and Reporting
 
 package feed
@@ -17,6 +17,7 @@ import (
 	"context"
 	"fmt"
 	"io"
+	"sync"
 	"time"
 
 	"github.com/pion/mediadevices"
@@ -25,7 +26,6 @@ import (
 // Health check tuning parameters
 const (
 	healthCheckInterval = 5 * time.Second
-	healthCheckTimeout  = 2 * time.Second
 	frozenThreshold     = 30 * time.Second
 )
 
@@ -139,9 +139,9 @@ func (f *Feed) checkTotalFailure() bool {
 // 3) PER-TRACK MONITORING
 // ============================================================================
 
-// monitorTrack monitors a single track with periodic health checks.
-// It detects both abrupt failures (OnEnded callback) and gradual degradation
-// (frozen device detected via health checks).
+// monitorTrack monitors a single track with a read loop and a watchdog.
+// It detects abrupt failures (OnEnded/read errors) and frozen devices
+// (no successful reads for frozenThreshold).
 func (f *Feed) monitorTrack(ctx context.Context, trackType string, failureChan chan<- string) {
 	defer f.monitorWg.Done()
 
@@ -161,41 +161,46 @@ func (f *Feed) monitorTrack(ctx context.Context, trackType string, failureChan c
 	f.logger.Debug("Starting track monitor", "trackType", trackType, "trackID", track.ID())
 	defer f.logger.Debug("Stopping track monitor", "trackType", trackType)
 
+	var failOnce sync.Once
+	reportFailure := func(reason string) {
+		failOnce.Do(func() {
+			f.markTrackFailed(trackType)
+			select {
+			case failureChan <- reason:
+			default:
+			}
+		})
+	}
+
 	// Register OnEnded callback for abrupt failures.
-	// This callback uses the 'ctx' variable captured from this function's scope,
-	// which is safe from the race condition with f.ctx being nilled on cleanup.
 	track.OnEnded(func(err error) {
 		select {
 		case <-ctx.Done():
-			// This is an expected shutdown, not a failure.
+			// Expected shutdown.
 			f.logger.Debug("Track OnEnded ignored: feed context is already cancelled", "trackType", trackType)
 			return
 		default:
-			// The feed is active, so this is an unexpected failure.
+			// Feed still active -> unexpected track end.
 			f.logger.Warn("Track OnEnded fired unexpectedly", "trackType", trackType, "error", err)
 			if err != nil && err != io.EOF {
-				f.markTrackFailed(trackType)
-				// Non-blocking send to the failure channel.
-				select {
-				case failureChan <- fmt.Sprintf("%s track ended: %v", trackType, err):
-				default:
-				}
+				reportFailure(fmt.Sprintf("%s track ended: %v", trackType, err))
 			}
 		}
 	})
 
-	// 1. Create a channel to communicate health check results from the worker
-	resultChan := make(chan error, 1)
-
-	// 2. Start a single dedicated worker for health checks
-	// This ensures that even if a read blocks indefinitely, we don't leak goroutines
+	// Single dedicated reader worker per track.
+	// If the driver blocks forever, leakage is bounded to one goroutine per track.
 	workerCtx, workerCancel := context.WithCancel(ctx)
 	defer workerCancel()
 
+	readErrChan := make(chan error, 1)
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				f.logger.Error("Panic in health check worker", "trackType", trackType, "panic", r)
+				select {
+				case readErrChan <- fmt.Errorf("panic in track reader: %v", r):
+				default:
+				}
 			}
 		}()
 
@@ -206,80 +211,77 @@ func (f *Feed) monitorTrack(ctx context.Context, trackType string, failureChan c
 			default:
 			}
 
-			var err error
-			switch t := track.(type) {
-			case *mediadevices.VideoTrack:
-				reader := t.NewReader(false)
-				_, release, readErr := reader.Read()
-				if release != nil {
-					release()
+			if err := readTrackOnce(track); err != nil {
+				select {
+				case readErrChan <- err:
+				default:
 				}
-				err = readErr
-			case *mediadevices.AudioTrack:
-				reader := t.NewReader(false)
-				_, release, readErr := reader.Read()
-				if release != nil {
-					release()
-				}
-				err = readErr
-			default:
-				err = fmt.Errorf("unknown track type: %T", track)
-			}
-
-			// Send result back, but don't block if no one is listening (e.g., during timeout handling)
-			select {
-			case resultChan <- err:
-			case <-workerCtx.Done():
-				return
-			default:
-				// If the channel is full, the main loop hasn't picked up the last result yet.
-				// We discard this result to prevent blocking the worker.
-			}
-
-			// Sleep before the next health check
-			select {
-			case <-time.After(healthCheckInterval):
-			case <-workerCtx.Done():
 				return
 			}
+
+			f.updateLastRead(trackType, time.Now())
 		}
 	}()
 
-	// 3. Main tracking loop
+	// Watchdog loop.
+	startedAt := time.Now()
+	ticker := time.NewTicker(healthCheckInterval)
+	defer ticker.Stop()
+
 	for {
 		select {
 		case <-ctx.Done():
 			return
-		case <-time.After(healthCheckInterval):
-			// Initiate a health check evaluation cycle
-			var healthErr error
 
-			// Wait for a result from the worker, up to the timeout
-			select {
-			case result := <-resultChan:
-				healthErr = result
-			case <-time.After(healthCheckTimeout):
-				healthErr = fmt.Errorf("health check timed out, device may be frozen")
+		case err := <-readErrChan:
+			if err != nil && err != io.EOF {
+				reportFailure(fmt.Sprintf("%s track read failed: %v", trackType, err))
+			}
+			return
+
+		case <-ticker.C:
+			now := time.Now()
+			lastRead := f.getLastRead(trackType)
+
+			if lastRead.IsZero() {
+				// Startup grace: allow frozenThreshold for the first successful frame.
+				if now.Sub(startedAt) > frozenThreshold {
+					reportFailure(fmt.Sprintf("%s device frozen: no data since startup for %v", trackType, now.Sub(startedAt)))
+					return
+				}
+				continue
 			}
 
-			now := time.Now()
-			if healthErr != nil {
-				lastRead := f.getLastRead(trackType)
-				if !lastRead.IsZero() {
-					since := now.Sub(lastRead)
-					if since > frozenThreshold {
-						f.markTrackFailed(trackType)
-						select {
-						case failureChan <- fmt.Sprintf("%s device frozen: no data for %v", trackType, since):
-						default:
-						}
-						return // Stop monitoring this failed track.
-					}
-				}
-			} else {
-				f.updateLastRead(trackType, now)
+			if now.Sub(lastRead) > frozenThreshold {
+				reportFailure(fmt.Sprintf("%s device frozen: no data for %v", trackType, now.Sub(lastRead)))
+				return
 			}
 		}
+	}
+}
+
+// ============================================================================
+// 4) TRACK READ HELPER
+// ============================================================================
+
+func readTrackOnce(track mediadevices.Track) error {
+	switch t := track.(type) {
+	case *mediadevices.VideoTrack:
+		reader := t.NewReader(false)
+		_, release, err := reader.Read()
+		if release != nil {
+			release()
+		}
+		return err
+	case *mediadevices.AudioTrack:
+		reader := t.NewReader(false)
+		_, release, err := reader.Read()
+		if release != nil {
+			release()
+		}
+		return err
+	default:
+		return fmt.Errorf("unknown track type: %T", track)
 	}
 }
 
