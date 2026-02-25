@@ -29,10 +29,25 @@ Before running the project, assure you have the following installed:
    ```
 
 2. **Build the Application:**
+
+   **Linux:**
    ```bash
-   go mod download
-   go build -o build/scenescheduler .
+   sudo apt-get install -y pkg-config libx11-dev libxcursor-dev libxrandr-dev libxinerama-dev libxi-dev libglx-dev libgl1-mesa-dev libxxf86vm-dev libvpx-dev libopus-dev libasound2-dev
+   go build -ldflags="-s -w" -o build/scenescheduler .
    ```
+
+   **macOS:**
+   ```bash
+   brew install pkg-config libvpx opus
+   go build -ldflags="-s -w" -o build/scenescheduler .
+   ```
+
+   **Windows (MSYS2 / UCRT64):**
+   ```bash
+   pacman -S mingw-w64-ucrt-x86_64-gcc mingw-w64-ucrt-x86_64-go mingw-w64-ucrt-x86_64-pkgconf mingw-w64-ucrt-x86_64-libvpx mingw-w64-ucrt-x86_64-opus
+   go build -ldflags="-s -w -extldflags '-static'" -o build/scenescheduler.exe .
+   ```
+   > The `-extldflags '-static'` flag embeds the GCC runtime into the executable, so it runs on any Windows machine without needing external DLLs. If static libraries are not available, omit this flag and distribute the MinGW DLLs alongside the `.exe`.
 
 3. **Configure Settings:**
    - Modify `config.json` to set your OBS WebSocket password, web server credentials, and preferred media devices.
