@@ -87,7 +87,7 @@ jobs:
           path-type: inherit
 
       - name: Build Go Binary
-        run: go build -ldflags="-s -w" -o scenescheduler.exe .
+        run: go build -ldflags="-s -w -extldflags '-static'" -o scenescheduler.exe .
 
       - name: Package
         shell: powershell
