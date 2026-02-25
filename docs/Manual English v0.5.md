@@ -139,6 +139,40 @@ Both `scheduleScene` and `scheduleSceneAux` are created automatically in OBS if 
 
 These settings control the WebRTC live preview stream shown in the Monitor view.
 
+**Finding device identifiers:**
+
+Run the following command to list all available media devices on your system:
+```bash
+./build/scenescheduler --list-devices
+```
+
+Example output:
+```
+----------- Available Media Devices -----------
+INFO: Use the 'Friendly Name' or 'DeviceID' for your config.
+
+VIDEO DEVICES:
+  #1:
+    Friendly Name : HD Webcam C920
+    DeviceID      : video0
+
+AUDIO DEVICES:
+  #1:
+    Friendly Name : Built-in Audio Analog Stereo
+    DeviceID      : default.monitor
+
+----------------------------------------------
+```
+
+Use the `DeviceID` values in your `config.json`:
+```json
+"mediaSource": {
+  "videoDeviceIdentifier": "video0",
+  "audioDeviceIdentifier": "default.monitor",
+  "quality": "medium"
+}
+```
+
 ### 2.4 Paths (`paths`)
 
 | Field | Type | Default | Description |

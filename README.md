@@ -51,34 +51,11 @@ Before running the project, assure you have the following installed:
 
 3. **Discover Media Devices:**
 
-   Before configuring, list available video and audio devices to find the correct identifiers:
+   List available video and audio devices to find the correct identifiers for `config.json`:
    ```bash
    ./build/scenescheduler --list-devices
    ```
-   Example output:
-   ```
-   ----------- Available Media Devices -----------
-   INFO: Use the 'Friendly Name' or 'DeviceID' for your config.
-
-   VIDEO DEVICES:
-     #1:
-       Friendly Name : HD Webcam C920
-       DeviceID      : video0
-
-   AUDIO DEVICES:
-     #1:
-       Friendly Name : Built-in Audio Analog Stereo
-       DeviceID      : default.monitor
-
-   ----------------------------------------------
-   ```
-   Then set the identifiers in `config.json`:
-   ```json
-   "mediaSource": {
-     "videoDeviceIdentifier": "video0",
-     "audioDeviceIdentifier": "default.monitor"
-   }
-   ```
+   See the [User Manual](docs/) for a detailed example of the output and how to configure device identifiers.
 
 4. **Configure Settings:**
    - Modify `config.json` to set your OBS WebSocket password, web server credentials, and the media device identifiers from the previous step.

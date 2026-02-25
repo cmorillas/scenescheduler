@@ -139,6 +139,40 @@ Ambas escenas (`scheduleScene` y `scheduleSceneAux`) se crean automáticamente e
 
 Estos ajustes controlan la vista previa WebRTC en directo mostrada en la vista Monitor.
 
+**Cómo encontrar los identificadores de dispositivo:**
+
+Ejecuta el siguiente comando para listar todos los dispositivos de medios disponibles en tu sistema:
+```bash
+./build/scenescheduler --list-devices
+```
+
+Ejemplo de salida:
+```
+----------- Available Media Devices -----------
+INFO: Use the 'Friendly Name' or 'DeviceID' for your config.
+
+VIDEO DEVICES:
+  #1:
+    Friendly Name : HD Webcam C920
+    DeviceID      : video0
+
+AUDIO DEVICES:
+  #1:
+    Friendly Name : Built-in Audio Analog Stereo
+    DeviceID      : default.monitor
+
+----------------------------------------------
+```
+
+Usa los valores de `DeviceID` en tu `config.json`:
+```json
+"mediaSource": {
+  "videoDeviceIdentifier": "video0",
+  "audioDeviceIdentifier": "default.monitor",
+  "quality": "medium"
+}
+```
+
 ### 2.4 Rutas (`paths`)
 
 | Campo | Tipo | Predeterminado | Descripción |
