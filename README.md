@@ -49,8 +49,39 @@ Before running the project, assure you have the following installed:
    ```
    > The `-extldflags '-static'` flag embeds the GCC runtime into the executable, so it runs on any Windows machine without needing external DLLs. If static libraries are not available, omit this flag and distribute the MinGW DLLs alongside the `.exe`.
 
-3. **Configure Settings:**
-   - Modify `config.json` to set your OBS WebSocket password, web server credentials, and preferred media devices.
+3. **Discover Media Devices:**
+
+   Before configuring, list available video and audio devices to find the correct identifiers:
+   ```bash
+   ./build/scenescheduler --list-devices
+   ```
+   Example output:
+   ```
+   ----------- Available Media Devices -----------
+   INFO: Use the 'Friendly Name' or 'DeviceID' for your config.
+
+   VIDEO DEVICES:
+     #1:
+       Friendly Name : HD Webcam C920
+       DeviceID      : video0
+
+   AUDIO DEVICES:
+     #1:
+       Friendly Name : Built-in Audio Analog Stereo
+       DeviceID      : default.monitor
+
+   ----------------------------------------------
+   ```
+   Then set the identifiers in `config.json`:
+   ```json
+   "mediaSource": {
+     "videoDeviceIdentifier": "video0",
+     "audioDeviceIdentifier": "default.monitor"
+   }
+   ```
+
+4. **Configure Settings:**
+   - Modify `config.json` to set your OBS WebSocket password, web server credentials, and the media device identifiers from the previous step.
 
 ## Usage
 
