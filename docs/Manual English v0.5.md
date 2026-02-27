@@ -336,7 +336,10 @@ In the Editor calendar:
 
 ### 4.8 Saving to Server
 
-After making changes in the Editor, the schedule is automatically sent to the server via WebSocket (`commitSchedule` action). The server saves it to the `schedule.json` file.
+Applying changes to the `schedule.json` file on the server is a two-step process to prevent accidental live stream interruptions:
+
+1. **Save Local Draft**: When you click "Save Changes" in the event modal, or drag/resize an event, the changes are only saved in your browser. A yellow indicator will appear in the top-right toolbar saying "X unsaved changes".
+2. **Commit to Server**: To publish your draft schedule to the server, click the `...` menu button in the top-right toolbar and select **"Commit to Server"**. Only then will the schedule be sent via WebSocket (`commitSchedule`), saved to disk, and executed by the scheduler.
 
 ---
 

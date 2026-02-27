@@ -330,7 +330,10 @@ En el calendario del Editor:
 
 ### 4.8 Guardar en el Servidor
 
-Tras hacer cambios en el Editor, la programación se envía automáticamente al servidor vía WebSocket (acción `commitSchedule`). El servidor la guarda en el archivo `schedule.json`.
+Aplicar cambios al archivo `schedule.json` en el servidor es un proceso de dos pasos para evitar interrupciones accidentales en la emisión:
+
+1. **Guardar borrador local**: Cuando haces clic en "Save Changes" en un evento, o al arrastrar/redimensionar en el calendario, los cambios solo se guardan en tu navegador. Aparecerá un indicador naranja arriba a la derecha diciendo "X unsaved changes".
+2. **Publicar en el servidor**: Para aplicar tu borrador al servidor, haz clic en el botón de menú `...` arriba a la derecha y selecciona **"Commit to Server"**. Solo entonces la programación se enviará por WebSocket (`commitSchedule`), se guardará en disco, y el planificador comenzará a ejecutarla.
 
 ---
 
