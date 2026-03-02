@@ -22,7 +22,7 @@ const (
 	writeWait      = 10 * time.Second
 	pongWait       = 60 * time.Second
 	pingPeriod     = (pongWait * 9) / 10
-	maxMessageSize = 16384 // 16 KB
+	maxMessageSize = 5 * 1024 * 1024 // 5 MB - Allows for large 24/7 schedules
 )
 
 // =============================================================================
