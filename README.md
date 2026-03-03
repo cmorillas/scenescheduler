@@ -82,4 +82,4 @@ For questions, suggestions, or support: **info@scenescheduler.com**
 
 ## License
 
-This project is released under the terms specified in the `LICENSE` file. Please also consult `THIRD-PARTY-LICENSES.txt` for details regarding the open-source libraries used within the application.
+This project is released under the **Creative Commons Attribution-NonCommercial 4.0 International Public License (CC BY-NC 4.0)**. See the `LICENSE` file for the full terms. Please also consult `THIRD-PARTY-LICENSES.txt` for details regarding the open-source libraries used within the application.
