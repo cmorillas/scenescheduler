@@ -2,7 +2,7 @@ Scene Scheduler - Third Party Licenses
 ===============================================
 
 Copyright (c) 2025 Scene Scheduler, S.L. - All Rights Reserved
-This software is licensed under the MIT License. See LICENSE file for terms.
+This software is licensed under the Creative Commons Attribution-NonCommercial 4.0 International Public License (CC BY-NC 4.0). See LICENSE file for terms.
 
 This software includes the following third-party open-source components:
 

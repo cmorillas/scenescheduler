@@ -2,7 +2,7 @@
 
 **Scene Scheduler** is a professional automation software designed to seamlessly control OBS Studio scenes according to a predefined schedule. It acts as an orchestrator, allowing broadcasters and streamers to manage 24/7 channels, switch between live sources, play videos (VOD), and display web content automatically.
 
-![License](https://img.shields.io/badge/license-MIT-blue.svg)
+[![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/cmorillas/scenescheduler)
 
 ## Features

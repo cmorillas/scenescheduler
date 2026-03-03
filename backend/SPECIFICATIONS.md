@@ -27,7 +27,7 @@
 - Automatic updates when OBS Studio is updated
 
 **Version:** 2.0.0
-**License:** MIT
+**License:** CC BY-NC 4.0
 
 ---
 
@@ -992,7 +992,7 @@ If you find an issue not listed here:
 ### Credits
 
 - **Author:** Cesar
-- **License:** MIT
+- **License:** CC BY-NC 4.0
 - **FFmpeg:** FFmpeg Project (LGPL/GPL)
 - **OBS Studio:** OBS Project (GPL)
 
