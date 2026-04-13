@@ -1,7 +1,7 @@
 # Scene Scheduler — Manual de Usuario
 
-**Versión:** 0.5  
-**Fecha:** Febrero 2026  
+**Versión:** 1.7.1  
+**Fecha:** Abril 2026  
 **Aplicación:** Scene Scheduler para OBS Studio
 
 ---
