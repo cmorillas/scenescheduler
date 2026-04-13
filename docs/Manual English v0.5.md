@@ -24,7 +24,7 @@
 
 ### 1.1 What is Scene Scheduler?
 
-Scene Scheduler is an external automation tool for OBS Studio that runs your broadcast on a time-based schedule — like a television station's programming grid. You define what content plays at what time, and Scene Scheduler handles the transitions automatically, 24/7, without manual intervention.
+Scene Scheduler is an external automation tool for OBS Studio that runs your broadcast on a time-based schedule — like a television station's programming grid. You define what sources play at what time, and Scene Scheduler handles the transitions automatically within a master scene, 24/7, without manual intervention.
 
 **Key features:**
 - Time-based automation with recurring events (daily/weekly)

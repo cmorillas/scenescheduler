@@ -1,13 +1,13 @@
 # Scene Scheduler
 
-**Scene Scheduler** is a professional automation software designed to seamlessly control OBS Studio scenes according to a predefined schedule. It acts as an orchestrator, allowing broadcasters and streamers to manage 24/7 channels, switch between live sources, play videos (VOD), and display web content automatically.
+**Scene Scheduler** is a professional automation software designed to seamlessly manage OBS Studio sources according to a predefined schedule. It acts as an orchestrator, dynamically building a master scene that allows broadcasters and streamers to manage 24/7 channels, switch between live sources, play videos (VOD), and display web content automatically without the need for multiple manual scenes.
 
 [![License: CC BY-NC 4.0](https://img.shields.io/badge/License-CC%20BY--NC%204.0-lightgrey.svg)](https://creativecommons.org/licenses/by-nc/4.0/)
 [![Ask DeepWiki](https://deepwiki.com/badge.svg)](https://deepwiki.com/cmorillas/scenescheduler)
 
 ## Features
 
-- **Automated Scene Switching:** Control OBS Studio via WebSockets based on precise timing schedules.
+- **Automated Source Scheduling:** Control OBS Studio via WebSockets to automatically present different sources in a master scene based on precise timing schedules.
 - **Multiple Source Support:** Natively schedule local videos (FFmpeg), images, browser sources, and live media streams.
 - **Dynamic HLS Generation:** Supports an optional companion tool [`hls-generator`](https://github.com/cmorillas/hls-generator) (C++) to process video streams into HLS without requiring a heavy, system-wide FFmpeg installation.
 - **Web Interface:** Control and monitor the schedule remotely via the built-in HTTP server.
