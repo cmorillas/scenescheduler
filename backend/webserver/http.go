@@ -13,6 +13,7 @@ import (
 	"crypto/subtle"
 	"io/fs"
 	"net/http"
+	"mime"
 )
 
 // =============================================================================
@@ -37,6 +38,7 @@ func (s *WebServer) setupRouter(staticFiles fs.FS) *http.ServeMux {
 
 	// Register the static file server for the frontend application.
 	// IMPORTANT: This must be registered LAST as it's a catch-all route.
+	mime.AddExtensionType(".mjs", "application/javascript")
 	staticHandler := http.FileServer(http.FS(staticFiles))
 	mux.Handle("/", auth(staticHandler))
 
